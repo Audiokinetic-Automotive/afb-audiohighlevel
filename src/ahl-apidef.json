@@ -1,0 +1,601 @@
+{
+    "openapi": "3.0.0",
+    "$schema": "http:iot.bzh/download/openapi/schema-3.0/default-schema.json",
+    "info": {
+        "description": "Audio high level API for AGL applications",
+        "title": "audiohighlevel",
+        "version": "1.0",
+        "x-binding-c-generator": {
+            "api": "audiohl",
+            "version": 2,
+            "prefix": "audiohlapi_",
+            "postfix": "",
+            "start": null,
+            "onevent": null,
+            "init": "AhlBindingInit",
+            "scope": "",
+            "private": false
+        }
+    },
+    "servers": [
+        {
+            "url": "ws://{host}:{port}/api/audiohl",
+            "description": "Audio high level API for AGL applications.",
+            "variables": {
+                "host": {
+                    "default": "localhost"
+                },
+                "port": {
+                    "default": "1234"
+                }
+            },
+            "x-afb-events": [
+                {
+                    "$ref": "#/components/schemas/afb-event"
+                }
+            ]
+        }
+    ],
+    "components": {
+        "schemas": {
+            "afb-reply": {
+                "$ref": "#/components/schemas/afb-reply-v2"
+            },
+            "afb-event": {
+                "$ref": "#/components/schemas/afb-event-v2"
+            },
+            "afb-reply-v2": {
+                "title": "Generic response.",
+                "type": "object",
+                "required": ["jtype", "request"],
+                "properties": {
+                    "jtype": {
+                        "type": "string",
+                        "const": "afb-reply"
+                    },
+                    "request": {
+                        "type": "object",
+                        "required": ["status"],
+                        "properties": {
+                            "status": {
+                                "type": "string"
+                            },
+                            "info": {
+                                "type": "string"
+                            },
+                            "token": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            },
+                            "reqid": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "response": {
+                        "type": "object"
+                    }
+                }
+            },
+            "afb-event-v2": {
+                "type": "object",
+                "required": ["jtype", "event"],
+                "properties": {
+                    "jtype": {
+                        "type": "string",
+                        "const": "afb-event"
+                    },
+                    "event": {
+                        "type": "string"
+                    },
+                    "data": {
+                        "type": "object"
+                    }
+                }
+            },
+            "endpoint_info": {
+                "type": "object",
+                "required": [ "endpoint_id", "type", "name" ],
+                "properties": {
+                    "endpoint_id": { "type": "int" },
+                    "type": { "type": "enum" },
+                    "name": { "type": "string" }
+                }
+            },
+            "stream_info": {
+                "type": "object",
+                "required": [ "stream_id", "pcm_name", "name" ],
+                "properties": {
+                    "stream_id": { "type": "int" },
+                    "pcm_name": { "type": "string" },
+                    "$ref": "#/components/schemas/endpoint_info"
+                }
+            },
+            "routing_info": {
+                "type": "object",
+                "required": [ "routing_id", "source_id", "sink_id" ],
+                "properties": {
+                    "routing_id": { "type": "int" },
+                    "source_id": { "type": "int" },
+                    "sink_id": { "type": "int" }
+                }
+            }
+        },
+        "x-permissions": {
+            "streamcontrol": {
+                "permission": "urn:AGL:permission:audio:public:streamcontrol"
+            },
+            "routingcontrol": {
+                "permission": "urn:AGL:permission:audio:public:routingcontrol"
+            },
+            "soundevent": {
+                "permission": "urn:AGL:permission:audio:public:soundevent"
+            }
+        },
+        "responses": {
+            "200": {
+                "description": "A complex object array response",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/afb-reply"
+                        }
+                    }
+                }
+            },
+            "400": {
+                "description": "Invalid arguments"
+            }
+        }
+    },    
+    "paths": {
+        "/get_sources": {
+            "description": "Retrieve array of available audio sources",
+            "get": {
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "audio_role",
+                        "required": false,
+                        "schema": { "type": "enum" }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/200",
+                        "response": {
+                            "description": "Array of endpoint info structures",
+                            "type": "array",
+                            "items": { "$ref": "#/components/schemas/endpoint_info"}
+                        }
+                    },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/get_sinks": {
+            "description": "Retrieve array of available audio sinks",
+            "get": {
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "audio_role",
+                        "required": false,
+                        "schema": { "type": "enum" }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/200",
+                        "response": {
+                            "description": "Array of endpoint info structures",
+                            "type": "array",
+                            "items": { "$ref": "#/components/schemas/endpoint_info"}
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/stream_open": {
+            "description": "Request opening a stream",
+            "get": {
+                "x-permissions": { "$ref": "#/components/x-permissions/streamcontrol" },
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "audio_role",
+                        "required": true,
+                        "schema": { "type": "enum" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "endpoint_type",
+                        "required": true,
+                        "schema": { "type": "enum" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "endpoint_id",
+                        "required": false,
+                        "schema": { "type": "int" }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/200",
+                        "response": {
+                            "description": "Stream information structure",
+                            "$ref": "#/components/schemas/stream_info"
+                        }
+                    },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/stream_close": {
+            "description": "Request closing a stream",
+            "get": {
+                "x-permissions": { "$ref": "#/components/x-permissions/streamcontrol" },
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "stream_id",
+                        "required": true,
+                        "schema": { "type": "int" }
+                    }
+                ],
+                "responses": {
+                    "200": { "$ref": "#/components/responses/200" },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/get_available_routings": {
+            "description": "Retrieve array of available routing info structures",
+            "get": {
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "audio_role",
+                        "required": false,
+                        "schema": { "type": "enum" }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/200",
+                        "response": {
+                            "description": "Array of routing info structures",
+                            "type": "array",
+                            "items": {
+                                "description": "Routing info structure {routingID, sourceID, sinkID }",
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },     
+        "/add_routing": {
+            "description": "Request a routing connection between available devices",
+            "get": {
+                "x-permissions": { "$ref": "#/components/x-permissions/routingcontrol" },
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "audio_role",
+                        "required": true,
+                        "schema": { "type": "enum" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "routing_id",
+                        "required": false,
+                        "schema": { "type": "int" }
+                    }
+                ],
+                "responses": {
+                    "200": { 
+                        "$ref": "#/components/responses/200",
+                        "response": {
+                            "description": "Routing information structure",
+                            "$ref": "#/components/schemas/routing_info"
+                        }
+                    },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/remove_routing": {
+            "description": "Request to remove a routing connection between devices",
+            "get": {
+                "x-permissions": { "$ref": "#/components/x-permissions/routingcontrol" },
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "routing_id",
+                        "required": true,
+                        "schema": { "type": "int" }
+                    }
+                ],
+                "responses": {
+                    "200": { "$ref": "#/components/responses/200" },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/set_endpoint_volume": {
+            "description": "Set endpoint volume",
+            "get": {
+                "x-permissions": { "$ref": "#/components/x-permissions/streamcontrol" },
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "endpoint_type",
+                        "required": true,
+                        "schema": { "type": "enum" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "endpoint_id",
+                        "required": true,
+                        "schema": { "type": "int" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "volume",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "ramp_time_ms",
+                        "required": false,
+                        "schema": { "type": "int" }
+                    }
+                ],
+                "responses": {
+                    "200": { "$ref": "#/components/responses/200" },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/get_endpoint_volume": {
+            "description": "Get endpoint volume",
+            "get": {
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "endpoint_type",
+                        "required": true,
+                        "schema": { "type": "enum" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "endpoint_id",
+                        "required": true,
+                        "schema": { "type": "int" }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/200",
+                        "response": {
+                            "description": "Endpoint volume value",
+                            "type": "double"
+                        }
+                    },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/set_endpoint_property": {
+            "description": "Set endpoint property value",
+            "get": {
+                "x-permissions": { "$ref": "#/components/x-permissions/streamcontrol" },
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "endpoint_type",
+                        "required": true,
+                        "schema": { "type": "enum" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "endpoint_id",
+                        "required": false,
+                        "schema": { "type": "int" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "property_name",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "value",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "ramp_time_ms",
+                        "required": false,
+                        "schema": { "type": "int" }
+                    }
+                ],
+                "responses": {
+                    "200": { "$ref": "#/components/responses/200" },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/get_endpoint_property": {
+            "description": "Get endpoint property value",
+            "get": {
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "endpoint_type",
+                        "required": true,
+                        "schema": { "type": "enum" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "endpoint_id",
+                        "required": false,
+                        "schema": { "type": "int" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "property_name",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/200",
+                        "response": {
+                            "description": "Property value",
+                            "type": "double"
+                        }
+                    },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/set_endpoint_state": {
+            "description": "Set endpoint state",
+            "get": {
+                "x-permissions": { "$ref": "#/components/x-permissions/streamcontrol" },
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "endpoint_type",
+                        "required": true,
+                        "schema": { "type": "enum" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "endpoint_id",
+                        "required": true,
+                        "schema": { "type": "int" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "state_name",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "state_value",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    }
+                ],
+                "responses": {
+                    "200": { "$ref": "#/components/responses/200" },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/get_endpoint_state": {
+            "description": "Get endpoint state value",
+            "get": {
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "endpoint_type",
+                        "required": true,
+                        "schema": { "type": "enum" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "endpoint_id",
+                        "required": true,
+                        "schema": { "type": "int" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "state_name",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/200",
+                        "response": {
+                            "description": "Endpoint state value",
+                            "type": "string"
+                        }
+                    },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/post_sound_event": {
+            "description": "Post sound event",
+            "get": {
+                "x-permissions": { "$ref": "#/components/x-permissions/soundevent" },
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "event_name",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "audio_role",
+                        "required": false,
+                        "schema": { "type": "enum" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "media_name",
+                        "required": false,
+                        "schema": { "type": "string"}
+                    },
+                    {
+                        "in": "query",
+                        "name": "audio_context",
+                        "required": false,
+                        "schema": { "type": "object" }
+                    }
+                ],
+                "responses": {
+                    "200": { "$ref": "#/components/responses/200" },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/subscribe": {
+            "description": "Subscribe to audio high level events",
+            "get": {
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "events",
+                        "required": true,
+                        "schema": { "type": "array",
+                        "items": { "type": "string" }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": { "$ref": "#/components/responses/200" },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        }
+    }
+}
