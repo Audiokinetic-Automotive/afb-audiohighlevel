@@ -1,0 +1,48 @@
+<html>
+<head>
+    <link rel="stylesheet" href="AudioBinding.css">
+    <title>Audio High Level Test</title>
+       
+    <script type="text/javascript" src="AFB-websock.js"></script>
+    <script type="text/javascript" src="AudioBinding.js"></script>
+</head>
+    
+<body onload="init('audiohl')">
+    
+    <button id="connected" onclick="init('audiohl');">Binder WS Fail</button>   
+
+    <br>
+    <ol>
+    <li><button onclick="callbinder('audiohl','get_sources', {})">get_sources {}</button></li>
+    <li><button onclick="callbinder('audiohl','get_sources', {audio_role:4})">get_sources('Entertainment')</button></li>
+    <li><button onclick="callbinder('audiohl','get_sinks', {})">get_sinks</button></li>
+    <li><button onclick="callbinder('audiohl','get_sinks', {audio_role:4})">get_sinks('Entertainment')</button></li>
+    <li><button onclick="callbinder('audiohl','stream_open', {audio_role:4,endpoint_type:1})">stream_open('Entertainment','Sink')</button></li>
+    <li><button onclick="callbinder('audiohl','stream_open', {audio_role:4,endpoint_type:1,endpoint_id:0})">stream_open('Entertainment','Sink',sinkID)</button></li>
+    <li><button onclick="callbinder('audiohl','stream_close', {stream_id:3})">stream_close(streamID)</button></li>
+    <li><button onclick="callbinder('audiohl','get_available_routings', {})">get_available_routings</button></li>
+    <li><button onclick="callbinder('audiohl','get_available_routings', {audio_role:4})">get_available_routings('Entertainment')</button></li>
+    <li><button onclick="callbinder('audiohl','add_routing', {audio_role:4})">add_routing('Entertainment')</button></li>  
+    <li><button onclick="callbinder('audiohl','add_routing', {audio_role:4,routing_id:2})">add_routing('Entertainment',routingID)</button></li>
+    <li><button onclick="callbinder('audiohl','remove_routing', {routing_id:3})">remove_routing(routingID)</button></li>   
+    <li><button onclick="callbinder('audiohl','set_endpoint_volume', {endpoint_type:1,endpoint_id:1,volume:'10+'})">set_endpoint_volume('Sink',sinkID,'10+')</button></li>   
+    <li><button onclick="callbinder('audiohl','set_endpoint_volume', {endpoint_type:1,endpoint_id:1,volume:'50%',ramp_time_ms:50})">set_endpoint_volume('Sink',sinkID,'50+',50)</button></li>
+    <li><button onclick="callbinder('audiohl','get_endpoint_volume', {endpoint_type:1,endpoint_id:1})">get_endpoint_volume('Sink',sinkID)</button></li>   
+    <li><button onclick="callbinder('audiohl','set_endpoint_property', {endpoint_type:1,endpoint_id:1,property_name:'balance',value:'75'})">set_endpoint_property('Sink',sinkID,'balance','75')</button></li>   
+    <li><button onclick="callbinder('audiohl','set_endpoint_property', {endpoint_type:1,endpoint_id:1,property_name:'balance',value:'75',ramp_time_ms:100})">set_endpoint_property('Sink',sinkID,'balance','75',100)</button></li>
+    <li><button onclick="callbinder('audiohl','get_endpoint_property', {endpoint_type:1,endpoint_id:1,property_name:'balance'})">get_endpoint_property('Sink',sinkID,'balance')</button></li>  
+    <li><button onclick="callbinder('audiohl','set_endpoint_state', {endpoint_type:1,endpoint_id:1,state_name:'mute',state_value:'true'})">set_endpoint_state('Sink',sinkID,'mute','true')</button></li>
+    <li><button onclick="callbinder('audiohl','get_endpoint_state', {endpoint_type:1,endpoint_id:1,state_name:'suspended'})">get_endpoint_state('Sink',sinkID,'suspended')</button></li>
+    <li><button onclick="callbinder('audiohl','post_sound_event', {event_name:'PlaySound',media_name:'HomeButton.wav'})">post_sound_event('PlaySound','HomeButton.wav')</button></li>
+    <li><button onclick="callbinder('audiohl','subscribe', {events:['SinkDeviceChanges','StreamStatusChanges']})">subscribe(['SinkDeviceChanges','StreamStatusChanges'])</button>
+    </li>
+    <br>
+    </ol>
+    
+    <div id="main" style="visibility:hidden">
+    <ol>
+    <li>Question <pre id="question"></pre>
+    <li>Response <pre id="output"></pre>
+    <li>Events:  <pre id="outevt"></pre>
+    </ol>
+    </div>    
