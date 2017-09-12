@@ -27,11 +27,19 @@ macro(SET_TARGET_GENSKEL TARGET_NAME API_DEF_NAME)
     
 endmacro(SET_TARGET_GENSKEL)
 
+FIND_PACKAGE(PkgConfig REQUIRED)
+PKG_CHECK_MODULES(GLIB_PKG REQUIRED glib-2.0)
+
+# get_cmake_property(_variableNames VARIABLES)
+# foreach (_variableName ${_variableNames})
+#    message(STATUS "${_variableName}=${${_variableName}}")
+# endforeach()
+
 # Add target to project dependency list
-PROJECT_TARGET_ADD(audiohighlevel-afb)
+PROJECT_TARGET_ADD(audiohighlevel)
 
     # Define project Targets
-    ADD_LIBRARY(${TARGET_NAME} MODULE ahl-binding.c  ahl-deviceenum.c)
+    ADD_LIBRARY(${TARGET_NAME} MODULE ahl-binding.c  ahl-deviceenum.c ahl-config.c ahl-policy.c)
 
     # Generate API-v2 hat from OpenAPI json definition
     SET_TARGET_GENSKEL(${TARGET_NAME} ahl-apidef)
@@ -44,9 +52,16 @@ PROJECT_TARGET_ADD(audiohighlevel-afb)
         OUTPUT_NAME ${TARGET_NAME}
     )
 
+    # Define target includes
+    TARGET_INCLUDE_DIRECTORIES(${TARGET_NAME}
+        PUBLIC ${GLIB_PKG_INCLUDE_DIRS}
+    )
+
     # Library dependencies (include updates automatically)
+    # Find package for GLIB does not seem to export
     TARGET_LINK_LIBRARIES(${TARGET_NAME} 
-        afb-utilities 
+        afb-utilities
+        ${GLIB_PKG_LIBRARIES}
         ${link_libraries}
     )
 

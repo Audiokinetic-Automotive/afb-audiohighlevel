@@ -15,82 +15,85 @@
  * limitations under the License.
  */
 
-
 #ifndef AHL_BINDING_INCLUDE
 #define AHL_BINDING_INCLUDE
 
 #define AFB_BINDING_VERSION 2
 #include <afb/afb-binding.h>
 #include <json-c/json.h>
+#include <glib.h>
+
+#include "ahl-interface.h"
 
 #ifndef PUBLIC
   #define PUBLIC
 #endif
 
-#define UNDEFINED_ID -1
+/////////////// Binding private information //////////////////
 
-typedef int endpointID_t;
-typedef int streamID_t;
-typedef int routingID_t;
-
-typedef enum EndpointType {
-    ENDPOINTTYPE_SOURCE = 0,    // source devices
-    ENDPOINTTYPE_SINK,          // sink devices
-    ENDPOINTTYPE_MAXVALUE       // Enum count, keep at the end
-} EndpointTypeT;
-
-typedef enum AudioRole {
-    AUDIOROLE_WARNING = 0,      // Safety-relevant or critical alerts/alarms
-    AUDIOROLE_GUIDANCE,         // Important user information where user action is expected (e.g. navigation instruction) 
-    AUDIOROLE_NOTIFICATION,     // HMI or else notifications (e.g. touchscreen events, speech recognition on/off,...)
-    AUDIOROLE_COMMUNICATIONS,   // Voice communications (e.g. handsfree, speech recognition)
-    AUDIOROLE_ENTERTAINMENT,    // Multimedia content (e.g. tuner, media player, etc.)
-    AUDIOROLE_SYSTEM,           // System level content
-    AUDIOROLE_DEFAULT,          // No specific audio role (legacy applications)
-    AUDIOROLE_MAXVALUE          // Enum count, keep at the end
-} AudioRoleT;
-
-typedef enum AudioDeviceClass {
-    AUDIODEVICE_SPEAKERMAIN = 0,
-    AUDIODEVICE_SPEAKERHEADREST,
-    AUDIODEVICE_HEADSET,
-    AUDIODEVICE_HEADPHONE,
-    AUDIODEVICE_LINEOUT,
-    AUDIODEVICE_LINEIN,
-    AUDIODEVICE_BLUETOOTH,
-    AUDIODEVICE_HANDSET,
-    AUDIODEVICE_HDMI,
-    AUDIODEVICE_USB,
-    AUDIODEVICE_TONES,
-    AUDIODEVICE_VOICE,
-    AUDIODEVICE_PHONELINK,
-    AUDIODEVICE_DEFAULT,
-    AUDIODEVICE_MAXVALUE // Enum count, keep at the end
-} AudioDeviceClassT;
+#define AUDIOHL_MAX_DEVICE_URI_LENGTH 256
+#define AUDIOHL_MAX_DEVICE_NAME_LENGTH 256
+#define AUDIOHL_MAX_AUDIOROLE_LENGTH 128
+#define AUDIOHL_MAX_HALAPINAME_LENGTH 64
+#define AUDIOHL_POLICY_ACCEPT 1
+#define AUDIOHL_POLICY_REJECT 0
 
 typedef struct EndpointInfo
 {
-    endpointID_t    endpoint_id;
-    EndpointTypeT   type;
-    char *          name;
-    // TODO: Consider adding associated device class
+    endpointID_t    endpointID;     // Unique endpoint ID (per type)
+    EndpointTypeT   type;           // Source or sink device
+    char            deviceName[AUDIOHL_MAX_DEVICE_NAME_LENGTH];   // Device name for applications to display
+    char            deviceURI[AUDIOHL_MAX_DEVICE_URI_LENGTH];     // Associated URI 
+    DeviceURITypeT  deviceURIType;  // Device URI type (includes audio domain information)
+    char            audioRole[AUDIOHL_MAX_AUDIOROLE_LENGTH];     // Audio role that registered this endpoint -> private
+    char            halAPIName[AUDIOHL_MAX_AUDIOROLE_LENGTH];    // HAL associated with the device (for volume control) -> private
+    int             cardNum;                                     // HW card number -> private
+    int             deviceNum;                                   // HW device number -> private                                   
+    int             subDeviceNum;                                // HW sub device number -> private
+    // Cached endpoint properties
+    GHashTable *    pStatesHT;                                   // Keep all known states in key value pairs
 } EndpointInfoT;
 
 typedef struct StreamInfo {
-    streamID_t      stream_id;
-    char *          pcm_name;
-    EndpointInfoT   endpoint_info;
+    streamID_t      streamID;
+    EndpointInfoT   endpointInfo;
 } StreamInfoT;
 
-typedef struct RoutingInfo {
-    routingID_t     routing_id;
-    endpointID_t    source_id;
-    endpointID_t    sink_id;
-} RoutingInfoT;
+// Parts of the context that are visible to the policy (for state based decisions)
+typedef struct AHLPolicyCtx {
+    GPtrArray *     pSourceEndpoints; // Array of source end points for each audio role (GArray*)
+    GPtrArray *     pSinkEndpoints;   // Array of sink end points for each audio role (GArray*)
+    GArray *        pRolePriority;    // List of role priorities (int).  TODO: Should be hash table with role name as key
+    GArray *        pAudioRoles;      // List of audio roles (GString)
+    GArray *        pActiveStreams;   // List of active streams (StreamInfoT)
+    int             iNumberRoles;     // Number of audio roles from configuration   
+    // TODO: Global properties   -> exposed to policy
+} AHLPolicyCtxT;
+
+// Global binding context
+typedef struct AHLCtx {
+    AHLPolicyCtxT   policyCtx;
+    endpointID_t    nextSourceEndpointID;       // Counter to assign new ID
+    endpointID_t    nextSinkEndpointID;         // Counter to assign new ID
+    endpointID_t    nextStreamID;               // Counter to assign new ID
+    GArray *        pHALList;                   // List of HAL dependencies
+    GHashTable *    pDefaultStatesHT;           // List of states and default values known to configuration
+} AHLCtxT;
 
 PUBLIC int AhlBindingInit();
 // ahl-deviceenum.c
-PUBLIC int  EnumerateSources();
-PUBLIC int  EnumerateSinks();
+PUBLIC int  EnumerateSources(json_object * in_jSourceArray, int in_iRoleIndex, char * in_pRoleName);
+PUBLIC int  EnumerateSinks(json_object * in_jSinkArray, int in_iRoleIndex, char * in_pRoleName);
+// ahl-config.c
+PUBLIC int  ParseHLBConfig();
+// ahl-policy.c
+PUBLIC int  Policy_OpenStream(char *pAudioRole, EndpointTypeT endpointType, endpointID_t endpointID);
+PUBLIC int  Policy_SetVolume(EndpointTypeT endpointType, endpointID_t endpointID, char *volumeStr, int rampTimeMS);
+PUBLIC int  Policy_SetProperty(EndpointTypeT endpointType, endpointID_t endpointID, char *propertyName, char *propValueStr, int rampTimeMS);
+PUBLIC int  Policy_SetState(EndpointTypeT endpointType, endpointID_t endpointID, char *pStateName, char *pStateValue);
+PUBLIC int  Policy_PostSoundEvent(char *eventName, char *audioRole, char *mediaName, void *audioContext);
+PUBLIC int  Policy_AudioDeviceChange();
 
-#endif
+#define AUDIOHL_MAXHALCONTROLNAME_LENGTH 128
+
+#endif // AHL_BINDING_INCLUDE

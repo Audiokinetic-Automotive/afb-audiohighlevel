@@ -22,140 +22,118 @@ static const char _afb_description_v2_audiohl[] =
     "\"],\"properties\":{\"jtype\":{\"type\":\"string\",\"const\":\"afb-event"
     "\"},\"event\":{\"type\":\"string\"},\"data\":{\"type\":\"object\"}}},\"e"
     "ndpoint_info\":{\"type\":\"object\",\"required\":[\"endpoint_id\",\"type"
-    "\",\"name\"],\"properties\":{\"endpoint_id\":{\"type\":\"int\"},\"type\""
-    ":{\"type\":\"enum\"},\"name\":{\"type\":\"string\"}}},\"stream_info\":{\""
-    "type\":\"object\",\"required\":[\"stream_id\",\"pcm_name\",\"name\"],\"p"
-    "roperties\":{\"stream_id\":{\"type\":\"int\"},\"pcm_name\":{\"type\":\"s"
-    "tring\"},\"$ref\":\"#/components/schemas/endpoint_info\"}},\"routing_inf"
-    "o\":{\"type\":\"object\",\"required\":[\"routing_id\",\"source_id\",\"si"
-    "nk_id\"],\"properties\":{\"routing_id\":{\"type\":\"int\"},\"source_id\""
-    ":{\"type\":\"int\"},\"sink_id\":{\"type\":\"int\"}}}},\"x-permissions\":"
-    "{\"streamcontrol\":{\"permission\":\"urn:AGL:permission:audio:public:str"
-    "eamcontrol\"},\"routingcontrol\":{\"permission\":\"urn:AGL:permission:au"
-    "dio:public:routingcontrol\"},\"soundevent\":{\"permission\":\"urn:AGL:pe"
-    "rmission:audio:public:soundevent\"}},\"responses\":{\"200\":{\"descripti"
-    "on\":\"A complex object array response\",\"content\":{\"application/json"
-    "\":{\"schema\":{\"$ref\":\"#/components/schemas/afb-reply\"}}}},\"400\":"
-    "{\"description\":\"Invalid arguments\"}}},\"paths\":{\"/get_sources\":{\""
-    "description\":\"Retrieve array of available audio sources\",\"get\":{\"p"
-    "arameters\":[{\"in\":\"query\",\"name\":\"audio_role\",\"required\":fals"
-    "e,\"schema\":{\"type\":\"enum\"}}],\"responses\":{\"200\":{\"$ref\":\"#/"
-    "components/responses/200\",\"response\":{\"description\":\"Array of endp"
-    "oint info structures\",\"type\":\"array\",\"items\":{\"$ref\":\"#/compon"
-    "ents/schemas/endpoint_info\"}}},\"400\":{\"$ref\":\"#/components/respons"
-    "es/400\"}}}},\"/get_sinks\":{\"description\":\"Retrieve array of availab"
-    "le audio sinks\",\"get\":{\"parameters\":[{\"in\":\"query\",\"name\":\"a"
-    "udio_role\",\"required\":false,\"schema\":{\"type\":\"enum\"}}],\"respon"
-    "ses\":{\"200\":{\"$ref\":\"#/components/responses/200\",\"response\":{\""
-    "description\":\"Array of endpoint info structures\",\"type\":\"array\",\""
-    "items\":{\"$ref\":\"#/components/schemas/endpoint_info\"}}},\"400\":{\"$"
-    "ref\":\"#/components/responses/400\"}}}},\"/stream_open\":{\"description"
-    "\":\"Request opening a stream\",\"get\":{\"x-permissions\":{\"$ref\":\"#"
-    "/components/x-permissions/streamcontrol\"},\"parameters\":[{\"in\":\"que"
-    "ry\",\"name\":\"audio_role\",\"required\":true,\"schema\":{\"type\":\"en"
-    "um\"}},{\"in\":\"query\",\"name\":\"endpoint_type\",\"required\":true,\""
-    "schema\":{\"type\":\"enum\"}},{\"in\":\"query\",\"name\":\"endpoint_id\""
-    ",\"required\":false,\"schema\":{\"type\":\"int\"}}],\"responses\":{\"200"
-    "\":{\"$ref\":\"#/components/responses/200\",\"response\":{\"description\""
-    ":\"Stream information structure\",\"$ref\":\"#/components/schemas/stream"
-    "_info\"}},\"400\":{\"$ref\":\"#/components/responses/400\"}}}},\"/stream"
-    "_close\":{\"description\":\"Request closing a stream\",\"get\":{\"x-perm"
-    "issions\":{\"$ref\":\"#/components/x-permissions/streamcontrol\"},\"para"
-    "meters\":[{\"in\":\"query\",\"name\":\"stream_id\",\"required\":true,\"s"
-    "chema\":{\"type\":\"int\"}}],\"responses\":{\"200\":{\"$ref\":\"#/compon"
-    "ents/responses/200\"},\"400\":{\"$ref\":\"#/components/responses/400\"}}"
-    "}},\"/get_available_routings\":{\"description\":\"Retrieve array of avai"
-    "lable routing info structures\",\"get\":{\"parameters\":[{\"in\":\"query"
-    "\",\"name\":\"audio_role\",\"required\":false,\"schema\":{\"type\":\"enu"
-    "m\"}}],\"responses\":{\"200\":{\"$ref\":\"#/components/responses/200\",\""
-    "response\":{\"description\":\"Array of routing info structures\",\"type\""
-    ":\"array\",\"items\":{\"description\":\"Routing info structure {routingI"
-    "D, sourceID, sinkID }\",\"type\":\"object\"}}},\"400\":{\"$ref\":\"#/com"
-    "ponents/responses/400\"}}}},\"/add_routing\":{\"description\":\"Request "
-    "a routing connection between available devices\",\"get\":{\"x-permission"
-    "s\":{\"$ref\":\"#/components/x-permissions/routingcontrol\"},\"parameter"
-    "s\":[{\"in\":\"query\",\"name\":\"audio_role\",\"required\":true,\"schem"
-    "a\":{\"type\":\"enum\"}},{\"in\":\"query\",\"name\":\"routing_id\",\"req"
-    "uired\":false,\"schema\":{\"type\":\"int\"}}],\"responses\":{\"200\":{\""
-    "$ref\":\"#/components/responses/200\",\"response\":{\"description\":\"Ro"
-    "uting information structure\",\"$ref\":\"#/components/schemas/routing_in"
-    "fo\"}},\"400\":{\"$ref\":\"#/components/responses/400\"}}}},\"/remove_ro"
-    "uting\":{\"description\":\"Request to remove a routing connection betwee"
-    "n devices\",\"get\":{\"x-permissions\":{\"$ref\":\"#/components/x-permis"
-    "sions/routingcontrol\"},\"parameters\":[{\"in\":\"query\",\"name\":\"rou"
-    "ting_id\",\"required\":true,\"schema\":{\"type\":\"int\"}}],\"responses\""
-    ":{\"200\":{\"$ref\":\"#/components/responses/200\"},\"400\":{\"$ref\":\""
-    "#/components/responses/400\"}}}},\"/set_endpoint_volume\":{\"description"
-    "\":\"Set endpoint volume\",\"get\":{\"x-permissions\":{\"$ref\":\"#/comp"
-    "onents/x-permissions/streamcontrol\"},\"parameters\":[{\"in\":\"query\","
-    "\"name\":\"endpoint_type\",\"required\":true,\"schema\":{\"type\":\"enum"
-    "\"}},{\"in\":\"query\",\"name\":\"endpoint_id\",\"required\":true,\"sche"
-    "ma\":{\"type\":\"int\"}},{\"in\":\"query\",\"name\":\"volume\",\"require"
-    "d\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"query\",\"name\":\""
-    "ramp_time_ms\",\"required\":false,\"schema\":{\"type\":\"int\"}}],\"resp"
-    "onses\":{\"200\":{\"$ref\":\"#/components/responses/200\"},\"400\":{\"$r"
-    "ef\":\"#/components/responses/400\"}}}},\"/get_endpoint_volume\":{\"desc"
-    "ription\":\"Get endpoint volume\",\"get\":{\"parameters\":[{\"in\":\"que"
-    "ry\",\"name\":\"endpoint_type\",\"required\":true,\"schema\":{\"type\":\""
-    "enum\"}},{\"in\":\"query\",\"name\":\"endpoint_id\",\"required\":true,\""
-    "schema\":{\"type\":\"int\"}}],\"responses\":{\"200\":{\"$ref\":\"#/compo"
-    "nents/responses/200\",\"response\":{\"description\":\"Endpoint volume va"
-    "lue\",\"type\":\"double\"}},\"400\":{\"$ref\":\"#/components/responses/4"
-    "00\"}}}},\"/set_endpoint_property\":{\"description\":\"Set endpoint prop"
-    "erty value\",\"get\":{\"x-permissions\":{\"$ref\":\"#/components/x-permi"
-    "ssions/streamcontrol\"},\"parameters\":[{\"in\":\"query\",\"name\":\"end"
-    "point_type\",\"required\":true,\"schema\":{\"type\":\"enum\"}},{\"in\":\""
-    "query\",\"name\":\"endpoint_id\",\"required\":false,\"schema\":{\"type\""
-    ":\"int\"}},{\"in\":\"query\",\"name\":\"property_name\",\"required\":tru"
-    "e,\"schema\":{\"type\":\"string\"}},{\"in\":\"query\",\"name\":\"value\""
-    ",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"query\",\""
-    "name\":\"ramp_time_ms\",\"required\":false,\"schema\":{\"type\":\"int\"}"
-    "}],\"responses\":{\"200\":{\"$ref\":\"#/components/responses/200\"},\"40"
-    "0\":{\"$ref\":\"#/components/responses/400\"}}}},\"/get_endpoint_propert"
-    "y\":{\"description\":\"Get endpoint property value\",\"get\":{\"paramete"
-    "rs\":[{\"in\":\"query\",\"name\":\"endpoint_type\",\"required\":true,\"s"
-    "chema\":{\"type\":\"enum\"}},{\"in\":\"query\",\"name\":\"endpoint_id\","
-    "\"required\":false,\"schema\":{\"type\":\"int\"}},{\"in\":\"query\",\"na"
-    "me\":\"property_name\",\"required\":true,\"schema\":{\"type\":\"string\""
-    "}}],\"responses\":{\"200\":{\"$ref\":\"#/components/responses/200\",\"re"
-    "sponse\":{\"description\":\"Property value\",\"type\":\"double\"}},\"400"
-    "\":{\"$ref\":\"#/components/responses/400\"}}}},\"/set_endpoint_state\":"
-    "{\"description\":\"Set endpoint state\",\"get\":{\"x-permissions\":{\"$r"
-    "ef\":\"#/components/x-permissions/streamcontrol\"},\"parameters\":[{\"in"
-    "\":\"query\",\"name\":\"endpoint_type\",\"required\":true,\"schema\":{\""
-    "type\":\"enum\"}},{\"in\":\"query\",\"name\":\"endpoint_id\",\"required\""
-    ":true,\"schema\":{\"type\":\"int\"}},{\"in\":\"query\",\"name\":\"state_"
-    "name\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"que"
-    "ry\",\"name\":\"state_value\",\"required\":true,\"schema\":{\"type\":\"s"
-    "tring\"}}],\"responses\":{\"200\":{\"$ref\":\"#/components/responses/200"
-    "\"},\"400\":{\"$ref\":\"#/components/responses/400\"}}}},\"/get_endpoint"
-    "_state\":{\"description\":\"Get endpoint state value\",\"get\":{\"parame"
-    "ters\":[{\"in\":\"query\",\"name\":\"endpoint_type\",\"required\":true,\""
-    "schema\":{\"type\":\"enum\"}},{\"in\":\"query\",\"name\":\"endpoint_id\""
-    ",\"required\":true,\"schema\":{\"type\":\"int\"}},{\"in\":\"query\",\"na"
-    "me\":\"state_name\",\"required\":true,\"schema\":{\"type\":\"string\"}}]"
-    ",\"responses\":{\"200\":{\"$ref\":\"#/components/responses/200\",\"respo"
-    "nse\":{\"description\":\"Endpoint state value\",\"type\":\"string\"}},\""
-    "400\":{\"$ref\":\"#/components/responses/400\"}}}},\"/post_sound_event\""
-    ":{\"description\":\"Post sound event\",\"get\":{\"x-permissions\":{\"$re"
-    "f\":\"#/components/x-permissions/soundevent\"},\"parameters\":[{\"in\":\""
-    "query\",\"name\":\"event_name\",\"required\":true,\"schema\":{\"type\":\""
-    "string\"}},{\"in\":\"query\",\"name\":\"audio_role\",\"required\":false,"
-    "\"schema\":{\"type\":\"enum\"}},{\"in\":\"query\",\"name\":\"media_name\""
-    ",\"required\":false,\"schema\":{\"type\":\"string\"}},{\"in\":\"query\","
-    "\"name\":\"audio_context\",\"required\":false,\"schema\":{\"type\":\"obj"
-    "ect\"}}],\"responses\":{\"200\":{\"$ref\":\"#/components/responses/200\""
-    "},\"400\":{\"$ref\":\"#/components/responses/400\"}}}},\"/subscribe\":{\""
-    "description\":\"Subscribe to audio high level events\",\"get\":{\"parame"
-    "ters\":[{\"in\":\"query\",\"name\":\"events\",\"required\":true,\"schema"
-    "\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}}}],\"responses\":"
+    "\",\"device_name\",\"device_uri\"],\"properties\":{\"endpoint_id\":{\"ty"
+    "pe\":\"int\"},\"type\":{\"type\":\"enum\"},\"device_name\":{\"type\":\"s"
+    "tring\"},\"device_uri_type\":{\"type\":\"string\"}}},\"stream_info\":{\""
+    "type\":\"object\",\"required\":[\"stream_id\",\"endpoint_info\"],\"prope"
+    "rties\":{\"stream_id\":{\"type\":\"int\"},\"$ref\":\"#/components/schema"
+    "s/endpoint_info\"}}},\"x-permissions\":{\"streamcontrol\":{\"permission\""
+    ":\"urn:AGL:permission:audio:public:streamcontrol\"},\"routingcontrol\":{"
+    "\"permission\":\"urn:AGL:permission:audio:public:routingcontrol\"},\"sou"
+    "ndevent\":{\"permission\":\"urn:AGL:permission:audio:public:soundevent\""
+    "}},\"responses\":{\"200\":{\"description\":\"A complex object array resp"
+    "onse\",\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/compo"
+    "nents/schemas/afb-reply\"}}}},\"400\":{\"description\":\"Invalid argumen"
+    "ts\"}}},\"paths\":{\"/get_sources\":{\"description\":\"Retrieve array of"
+    " available audio sources\",\"get\":{\"parameters\":[{\"in\":\"query\",\""
+    "name\":\"audio_role\",\"required\":true,\"schema\":{\"type\":\"string\"}"
+    "}],\"responses\":{\"200\":{\"$ref\":\"#/components/responses/200\",\"res"
+    "ponse\":{\"description\":\"Array of endpoint info structures\",\"type\":"
+    "\"array\",\"items\":{\"$ref\":\"#/components/schemas/endpoint_info\"}}},"
+    "\"400\":{\"$ref\":\"#/components/responses/400\"}}}},\"/get_sinks\":{\"d"
+    "escription\":\"Retrieve array of available audio sinks\",\"get\":{\"para"
+    "meters\":[{\"in\":\"query\",\"name\":\"audio_role\",\"required\":true,\""
+    "schema\":{\"type\":\"string\"}}],\"responses\":{\"200\":{\"$ref\":\"#/co"
+    "mponents/responses/200\",\"response\":{\"description\":\"Array of endpoi"
+    "nt info structures\",\"type\":\"array\",\"items\":{\"$ref\":\"#/componen"
+    "ts/schemas/endpoint_info\"}}},\"400\":{\"$ref\":\"#/components/responses"
+    "/400\"}}}},\"/stream_open\":{\"description\":\"Request opening a stream\""
+    ",\"get\":{\"x-permissions\":{\"$ref\":\"#/components/x-permissions/strea"
+    "mcontrol\"},\"parameters\":[{\"in\":\"query\",\"name\":\"audio_role\",\""
+    "required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"query\",\"na"
+    "me\":\"endpoint_type\",\"required\":true,\"schema\":{\"type\":\"enum\"}}"
+    ",{\"in\":\"query\",\"name\":\"endpoint_id\",\"required\":false,\"schema\""
+    ":{\"type\":\"int\"}}],\"responses\":{\"200\":{\"$ref\":\"#/components/re"
+    "sponses/200\",\"response\":{\"description\":\"Stream information structu"
+    "re\",\"$ref\":\"#/components/schemas/stream_info\"}},\"400\":{\"$ref\":\""
+    "#/components/responses/400\"}}}},\"/stream_close\":{\"description\":\"Re"
+    "quest closing a stream\",\"get\":{\"x-permissions\":{\"$ref\":\"#/compon"
+    "ents/x-permissions/streamcontrol\"},\"parameters\":[{\"in\":\"query\",\""
+    "name\":\"stream_id\",\"required\":true,\"schema\":{\"type\":\"int\"}}],\""
+    "responses\":{\"200\":{\"$ref\":\"#/components/responses/200\"},\"400\":{"
+    "\"$ref\":\"#/components/responses/400\"}}}},\"/set_volume\":{\"descripti"
+    "on\":\"Set volume\",\"get\":{\"x-permissions\":{\"$ref\":\"#/components/"
+    "x-permissions/streamcontrol\"},\"parameters\":[{\"in\":\"query\",\"name\""
+    ":\"endpoint_type\",\"required\":true,\"schema\":{\"type\":\"enum\"}},{\""
+    "in\":\"query\",\"name\":\"endpoint_id\",\"required\":true,\"schema\":{\""
+    "type\":\"int\"}},{\"in\":\"query\",\"name\":\"volume\",\"required\":true"
+    ",\"schema\":{\"type\":\"string\"}},{\"in\":\"query\",\"name\":\"ramp_tim"
+    "e_ms\",\"required\":false,\"schema\":{\"type\":\"int\"}}],\"responses\":"
     "{\"200\":{\"$ref\":\"#/components/responses/200\"},\"400\":{\"$ref\":\"#"
-    "/components/responses/400\"}}}}}}"
+    "/components/responses/400\"}}}},\"/get_volume\":{\"description\":\"Get v"
+    "olume\",\"get\":{\"parameters\":[{\"in\":\"query\",\"name\":\"endpoint_t"
+    "ype\",\"required\":true,\"schema\":{\"type\":\"enum\"}},{\"in\":\"query\""
+    ",\"name\":\"endpoint_id\",\"required\":true,\"schema\":{\"type\":\"int\""
+    "}}],\"responses\":{\"200\":{\"$ref\":\"#/components/responses/200\",\"re"
+    "sponse\":{\"description\":\"Endpoint volume value\",\"type\":\"double\"}"
+    "},\"400\":{\"$ref\":\"#/components/responses/400\"}}}},\"/set_property\""
+    ":{\"description\":\"Set property value\",\"get\":{\"x-permissions\":{\"$"
+    "ref\":\"#/components/x-permissions/streamcontrol\"},\"parameters\":[{\"i"
+    "n\":\"query\",\"name\":\"endpoint_type\",\"required\":true,\"schema\":{\""
+    "type\":\"enum\"}},{\"in\":\"query\",\"name\":\"endpoint_id\",\"required\""
+    ":false,\"schema\":{\"type\":\"int\"}},{\"in\":\"query\",\"name\":\"prope"
+    "rty_name\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\""
+    "query\",\"name\":\"value\",\"required\":true,\"schema\":{\"type\":\"stri"
+    "ng\"}},{\"in\":\"query\",\"name\":\"ramp_time_ms\",\"required\":false,\""
+    "schema\":{\"type\":\"int\"}}],\"responses\":{\"200\":{\"$ref\":\"#/compo"
+    "nents/responses/200\"},\"400\":{\"$ref\":\"#/components/responses/400\"}"
+    "}}},\"/get_property\":{\"description\":\"Get property value\",\"get\":{\""
+    "parameters\":[{\"in\":\"query\",\"name\":\"endpoint_type\",\"required\":"
+    "true,\"schema\":{\"type\":\"enum\"}},{\"in\":\"query\",\"name\":\"endpoi"
+    "nt_id\",\"required\":false,\"schema\":{\"type\":\"int\"}},{\"in\":\"quer"
+    "y\",\"name\":\"property_name\",\"required\":true,\"schema\":{\"type\":\""
+    "string\"}}],\"responses\":{\"200\":{\"$ref\":\"#/components/responses/20"
+    "0\",\"response\":{\"description\":\"Property value\",\"type\":\"double\""
+    "}},\"400\":{\"$ref\":\"#/components/responses/400\"}}}},\"/set_state\":{"
+    "\"description\":\"Set state\",\"get\":{\"x-permissions\":{\"$ref\":\"#/c"
+    "omponents/x-permissions/streamcontrol\"},\"parameters\":[{\"in\":\"query"
+    "\",\"name\":\"endpoint_type\",\"required\":true,\"schema\":{\"type\":\"e"
+    "num\"}},{\"in\":\"query\",\"name\":\"endpoint_id\",\"required\":true,\"s"
+    "chema\":{\"type\":\"int\"}},{\"in\":\"query\",\"name\":\"state_name\",\""
+    "required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"query\",\"na"
+    "me\":\"state_value\",\"required\":true,\"schema\":{\"type\":\"string\"}}"
+    "],\"responses\":{\"200\":{\"$ref\":\"#/components/responses/200\"},\"400"
+    "\":{\"$ref\":\"#/components/responses/400\"}}}},\"/get_state\":{\"descri"
+    "ption\":\"Get state value\",\"get\":{\"parameters\":[{\"in\":\"query\",\""
+    "name\":\"endpoint_type\",\"required\":true,\"schema\":{\"type\":\"enum\""
+    "}},{\"in\":\"query\",\"name\":\"endpoint_id\",\"required\":true,\"schema"
+    "\":{\"type\":\"int\"}},{\"in\":\"query\",\"name\":\"state_name\",\"requi"
+    "red\":true,\"schema\":{\"type\":\"string\"}}],\"responses\":{\"200\":{\""
+    "$ref\":\"#/components/responses/200\",\"response\":{\"description\":\"En"
+    "dpoint state value\",\"type\":\"string\"}},\"400\":{\"$ref\":\"#/compone"
+    "nts/responses/400\"}}}},\"/post_sound_event\":{\"description\":\"Post so"
+    "und event\",\"get\":{\"x-permissions\":{\"$ref\":\"#/components/x-permis"
+    "sions/soundevent\"},\"parameters\":[{\"in\":\"query\",\"name\":\"event_n"
+    "ame\",\"required\":true,\"schema\":{\"type\":\"string\"}},{\"in\":\"quer"
+    "y\",\"name\":\"audio_role\",\"required\":true,\"schema\":{\"type\":\"str"
+    "ing\"}},{\"in\":\"query\",\"name\":\"media_name\",\"required\":false,\"s"
+    "chema\":{\"type\":\"string\"}},{\"in\":\"query\",\"name\":\"audio_contex"
+    "t\",\"required\":false,\"schema\":{\"type\":\"object\"}}],\"responses\":"
+    "{\"200\":{\"$ref\":\"#/components/responses/200\"},\"400\":{\"$ref\":\"#"
+    "/components/responses/400\"}}}},\"/subscribe\":{\"description\":\"Subscr"
+    "ibe to audio high level events\",\"get\":{\"parameters\":[{\"in\":\"quer"
+    "y\",\"name\":\"events\",\"required\":true,\"schema\":{\"type\":\"array\""
+    ",\"items\":{\"type\":\"string\"}}}],\"responses\":{\"200\":{\"$ref\":\"#"
+    "/components/responses/200\"},\"400\":{\"$ref\":\"#/components/responses/"
+    "400\"}}}},\"/unsubscribe\":{\"description\":\"Unubscribe to audio high l"
+    "evel events\",\"get\":{\"parameters\":[{\"in\":\"query\",\"name\":\"even"
+    "ts\",\"required\":true,\"schema\":{\"type\":\"array\",\"items\":{\"type\""
+    ":\"string\"}}}],\"responses\":{\"200\":{\"$ref\":\"#/components/response"
+    "s/200\"},\"400\":{\"$ref\":\"#/components/responses/400\"}}}}}}"
 ;
 
 static const struct afb_auth _afb_auths_v2_audiohl[] = {
 	{ .type = afb_auth_Permission, .text = "urn:AGL:permission:audio:public:streamcontrol" },
-	{ .type = afb_auth_Permission, .text = "urn:AGL:permission:audio:public:routingcontrol" },
 	{ .type = afb_auth_Permission, .text = "urn:AGL:permission:audio:public:soundevent" }
 };
 
@@ -163,131 +141,121 @@ static const struct afb_auth _afb_auths_v2_audiohl[] = {
  void audiohlapi_get_sinks(struct afb_req req);
  void audiohlapi_stream_open(struct afb_req req);
  void audiohlapi_stream_close(struct afb_req req);
- void audiohlapi_get_available_routings(struct afb_req req);
- void audiohlapi_add_routing(struct afb_req req);
- void audiohlapi_remove_routing(struct afb_req req);
- void audiohlapi_set_endpoint_volume(struct afb_req req);
- void audiohlapi_get_endpoint_volume(struct afb_req req);
- void audiohlapi_set_endpoint_property(struct afb_req req);
- void audiohlapi_get_endpoint_property(struct afb_req req);
- void audiohlapi_set_endpoint_state(struct afb_req req);
- void audiohlapi_get_endpoint_state(struct afb_req req);
+ void audiohlapi_set_volume(struct afb_req req);
+ void audiohlapi_get_volume(struct afb_req req);
+ void audiohlapi_set_property(struct afb_req req);
+ void audiohlapi_get_property(struct afb_req req);
+ void audiohlapi_set_state(struct afb_req req);
+ void audiohlapi_get_state(struct afb_req req);
  void audiohlapi_post_sound_event(struct afb_req req);
  void audiohlapi_subscribe(struct afb_req req);
+ void audiohlapi_unsubscribe(struct afb_req req);
 
 static const struct afb_verb_v2 _afb_verbs_v2_audiohl[] = {
     {
         .verb = "get_sources",
         .callback = audiohlapi_get_sources,
         .auth = NULL,
-        .info = NULL,
+        .info = "Retrieve array of available audio sources",
         .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "get_sinks",
         .callback = audiohlapi_get_sinks,
         .auth = NULL,
-        .info = NULL,
+        .info = "Retrieve array of available audio sinks",
         .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "stream_open",
         .callback = audiohlapi_stream_open,
         .auth = &_afb_auths_v2_audiohl[0],
-        .info = NULL,
+        .info = "Request opening a stream",
         .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "stream_close",
         .callback = audiohlapi_stream_close,
         .auth = &_afb_auths_v2_audiohl[0],
-        .info = NULL,
+        .info = "Request closing a stream",
         .session = AFB_SESSION_NONE_V2
     },
     {
-        .verb = "get_available_routings",
-        .callback = audiohlapi_get_available_routings,
-        .auth = NULL,
-        .info = NULL,
-        .session = AFB_SESSION_NONE_V2
-    },
-    {
-        .verb = "add_routing",
-        .callback = audiohlapi_add_routing,
-        .auth = &_afb_auths_v2_audiohl[1],
-        .info = NULL,
-        .session = AFB_SESSION_NONE_V2
-    },
-    {
-        .verb = "remove_routing",
-        .callback = audiohlapi_remove_routing,
-        .auth = &_afb_auths_v2_audiohl[1],
-        .info = NULL,
-        .session = AFB_SESSION_NONE_V2
-    },
-    {
-        .verb = "set_endpoint_volume",
-        .callback = audiohlapi_set_endpoint_volume,
+        .verb = "set_volume",
+        .callback = audiohlapi_set_volume,
         .auth = &_afb_auths_v2_audiohl[0],
-        .info = NULL,
+        .info = "Set volume",
         .session = AFB_SESSION_NONE_V2
     },
     {
-        .verb = "get_endpoint_volume",
-        .callback = audiohlapi_get_endpoint_volume,
+        .verb = "get_volume",
+        .callback = audiohlapi_get_volume,
         .auth = NULL,
-        .info = NULL,
+        .info = "Get volume",
         .session = AFB_SESSION_NONE_V2
     },
     {
-        .verb = "set_endpoint_property",
-        .callback = audiohlapi_set_endpoint_property,
+        .verb = "set_property",
+        .callback = audiohlapi_set_property,
         .auth = &_afb_auths_v2_audiohl[0],
-        .info = NULL,
+        .info = "Set property value",
         .session = AFB_SESSION_NONE_V2
     },
     {
-        .verb = "get_endpoint_property",
-        .callback = audiohlapi_get_endpoint_property,
+        .verb = "get_property",
+        .callback = audiohlapi_get_property,
         .auth = NULL,
-        .info = NULL,
+        .info = "Get property value",
         .session = AFB_SESSION_NONE_V2
     },
     {
-        .verb = "set_endpoint_state",
-        .callback = audiohlapi_set_endpoint_state,
+        .verb = "set_state",
+        .callback = audiohlapi_set_state,
         .auth = &_afb_auths_v2_audiohl[0],
-        .info = NULL,
+        .info = "Set state",
         .session = AFB_SESSION_NONE_V2
     },
     {
-        .verb = "get_endpoint_state",
-        .callback = audiohlapi_get_endpoint_state,
+        .verb = "get_state",
+        .callback = audiohlapi_get_state,
         .auth = NULL,
-        .info = NULL,
+        .info = "Get state value",
         .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "post_sound_event",
         .callback = audiohlapi_post_sound_event,
-        .auth = &_afb_auths_v2_audiohl[2],
-        .info = NULL,
+        .auth = &_afb_auths_v2_audiohl[1],
+        .info = "Post sound event",
         .session = AFB_SESSION_NONE_V2
     },
     {
         .verb = "subscribe",
         .callback = audiohlapi_subscribe,
         .auth = NULL,
-        .info = NULL,
+        .info = "Subscribe to audio high level events",
         .session = AFB_SESSION_NONE_V2
     },
-    { .verb = NULL }
+    {
+        .verb = "unsubscribe",
+        .callback = audiohlapi_unsubscribe,
+        .auth = NULL,
+        .info = "Unubscribe to audio high level events",
+        .session = AFB_SESSION_NONE_V2
+    },
+    {
+        .verb = NULL,
+        .callback = NULL,
+        .auth = NULL,
+        .info = NULL,
+        .session = 0
+	}
 };
 
 const struct afb_binding_v2 afbBindingV2 = {
     .api = "audiohl",
     .specification = _afb_description_v2_audiohl,
-    .info = NULL,
+    .info = "Audio high level API for AGL applications",
     .verbs = _afb_verbs_v2_audiohl,
     .preinit = NULL,
     .init = AhlBindingInit,

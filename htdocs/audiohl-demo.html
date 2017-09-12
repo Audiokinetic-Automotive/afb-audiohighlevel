@@ -1,0 +1,47 @@
+<html>
+<head>
+    <link rel="stylesheet" href="AudioBinding.css">
+    <title>Audio High Level Test</title>
+       
+    <script type="text/javascript" src="AFB-websock.js"></script>
+    <script type="text/javascript" src="AudioBinding.js"></script>
+</head>
+    
+<body onload="init('audiohl')">
+    
+    <button id="connected" onclick="init('audiohl');">Binder WS Fail</button>   
+
+    <li>Use Case 1: Automatic EndPoint Selection</li>
+    <br>
+    <ol>
+    <li><button onclick="callbinder('audiohl','stream_open', {audio_role:4,endpoint_type:1})">stream_open('Entertainment','Sink')</button></li>
+    <li><button onclick="callbinder('audiohl','set_endpoint_volume', {endpoint_type:1,endpoint_id:2,volume:'10+'})">set_endpoint_volume('Sink',2,'10+')</button></li>
+    <li><button onclick="callbinder('audiohl','stream_close', {stream_id:1})">stream_close(streamID)</button></li>
+    <br>
+    </ol>
+    
+    <li>Use Case 2: User Select EndPoint</li>
+    <br>
+    <ol>
+    <li><button onclick="callbinder('audiohl','get_sinks', {audio_role:4})">get_sinks('Entertainment')</button></li>
+    <li><button onclick="callbinder('audiohl','stream_open', {audio_role:4,endpoint_type:1,endpoint_id:10})">stream_open('Entertainment','Sink',sinkID)</button></li>
+    <li><button onclick="callbinder('audiohl','post_sound_event', {event_name:'PlaySound',media_name:'HomeButton.wav'})">post_sound_event('PlaySound','HomeButton.wav')</button></li>
+    <li><button onclick="callbinder('audiohl','stream_close', {stream_id:1})">stream_close(streamID)</button></li>
+    <br>
+    </ol>
+    
+    <li>Use Case 3: Select Routing</li>
+    <br>
+    <ol>
+    <li><button onclick="callbinder('audiohl','get_available_routings', {audio_role:4})">get_available_routings('Entertainment')</button></li>
+    <li><button onclick="callbinder('audiohl','add_routing', {audio_role:4,routing_id:2})">add_routing('Entertainment',routingID)</button></li>
+    <br>
+    </ol>
+    
+    <div id="main" style="visibility:hidden">
+    <ol>
+    <li>Question <pre id="question"></pre>
+    <li>Response <pre id="output"></pre>
+    <li>Events:  <pre id="outevt"></pre>
+    </ol>
+    </div>    

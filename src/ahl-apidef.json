@@ -97,29 +97,20 @@
             },
             "endpoint_info": {
                 "type": "object",
-                "required": [ "endpoint_id", "type", "name" ],
+                "required": [ "endpoint_id", "type", "device_name", "device_uri" ],
                 "properties": {
                     "endpoint_id": { "type": "int" },
                     "type": { "type": "enum" },
-                    "name": { "type": "string" }
+                    "device_name": { "type": "string" },
+                    "device_uri_type": { "type": "string" }
                 }
             },
             "stream_info": {
                 "type": "object",
-                "required": [ "stream_id", "pcm_name", "name" ],
+                "required": [ "stream_id", "endpoint_info" ],
                 "properties": {
                     "stream_id": { "type": "int" },
-                    "pcm_name": { "type": "string" },
                     "$ref": "#/components/schemas/endpoint_info"
-                }
-            },
-            "routing_info": {
-                "type": "object",
-                "required": [ "routing_id", "source_id", "sink_id" ],
-                "properties": {
-                    "routing_id": { "type": "int" },
-                    "source_id": { "type": "int" },
-                    "sink_id": { "type": "int" }
                 }
             }
         },
@@ -158,8 +149,8 @@
                     {
                         "in": "query",
                         "name": "audio_role",
-                        "required": false,
-                        "schema": { "type": "enum" }
+                        "required": true,
+                        "schema": { "type": "string" }
                     }
                 ],
                 "responses": {
@@ -182,8 +173,8 @@
                     {
                         "in": "query",
                         "name": "audio_role",
-                        "required": false,
-                        "schema": { "type": "enum" }
+                        "required": true,
+                        "schema": { "type": "string" }
                     }
                 ],
                 "responses": {
@@ -209,7 +200,7 @@
                         "in": "query",
                         "name": "audio_role",
                         "required": true,
-                        "schema": { "type": "enum" }
+                        "schema": { "type": "string" }
                     },
                     {
                         "in": "query",
@@ -254,83 +245,8 @@
                 }
             }
         },
-        "/get_available_routings": {
-            "description": "Retrieve array of available routing info structures",
-            "get": {
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "audio_role",
-                        "required": false,
-                        "schema": { "type": "enum" }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "$ref": "#/components/responses/200",
-                        "response": {
-                            "description": "Array of routing info structures",
-                            "type": "array",
-                            "items": {
-                                "description": "Routing info structure {routingID, sourceID, sinkID }",
-                                "type": "object"
-                            }
-                        }
-                    },
-                    "400": { "$ref": "#/components/responses/400" }
-                }
-            }
-        },     
-        "/add_routing": {
-            "description": "Request a routing connection between available devices",
-            "get": {
-                "x-permissions": { "$ref": "#/components/x-permissions/routingcontrol" },
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "audio_role",
-                        "required": true,
-                        "schema": { "type": "enum" }
-                    },
-                    {
-                        "in": "query",
-                        "name": "routing_id",
-                        "required": false,
-                        "schema": { "type": "int" }
-                    }
-                ],
-                "responses": {
-                    "200": { 
-                        "$ref": "#/components/responses/200",
-                        "response": {
-                            "description": "Routing information structure",
-                            "$ref": "#/components/schemas/routing_info"
-                        }
-                    },
-                    "400": { "$ref": "#/components/responses/400" }
-                }
-            }
-        },
-        "/remove_routing": {
-            "description": "Request to remove a routing connection between devices",
-            "get": {
-                "x-permissions": { "$ref": "#/components/x-permissions/routingcontrol" },
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "routing_id",
-                        "required": true,
-                        "schema": { "type": "int" }
-                    }
-                ],
-                "responses": {
-                    "200": { "$ref": "#/components/responses/200" },
-                    "400": { "$ref": "#/components/responses/400" }
-                }
-            }
-        },
-        "/set_endpoint_volume": {
-            "description": "Set endpoint volume",
+        "/set_volume": {
+            "description": "Set volume",
             "get": {
                 "x-permissions": { "$ref": "#/components/x-permissions/streamcontrol" },
                 "parameters": [
@@ -365,8 +281,8 @@
                 }
             }
         },
-        "/get_endpoint_volume": {
-            "description": "Get endpoint volume",
+        "/get_volume": {
+            "description": "Get volume",
             "get": {
                 "parameters": [
                     {
@@ -394,8 +310,8 @@
                 }
             }
         },
-        "/set_endpoint_property": {
-            "description": "Set endpoint property value",
+        "/set_property": {
+            "description": "Set property value",
             "get": {
                 "x-permissions": { "$ref": "#/components/x-permissions/streamcontrol" },
                 "parameters": [
@@ -436,8 +352,8 @@
                 }
             }
         },
-        "/get_endpoint_property": {
-            "description": "Get endpoint property value",
+        "/get_property": {
+            "description": "Get property value",
             "get": {
                 "parameters": [
                     {
@@ -471,8 +387,8 @@
                 }
             }
         },
-        "/set_endpoint_state": {
-            "description": "Set endpoint state",
+        "/set_state": {
+            "description": "Set state",
             "get": {
                 "x-permissions": { "$ref": "#/components/x-permissions/streamcontrol" },
                 "parameters": [
@@ -507,8 +423,8 @@
                 }
             }
         },
-        "/get_endpoint_state": {
-            "description": "Get endpoint state value",
+        "/get_state": {
+            "description": "Get state value",
             "get": {
                 "parameters": [
                     {
@@ -556,8 +472,8 @@
                     {
                         "in": "query",
                         "name": "audio_role",
-                        "required": false,
-                        "schema": { "type": "enum" }
+                        "required": true,
+                        "schema": { "type": "string" }
                     },
                     {
                         "in": "query",
@@ -594,6 +510,32 @@
                 "responses": {
                     "200": { "$ref": "#/components/responses/200" },
                     "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/unsubscribe": {
+            "description": "Unubscribe to audio high level events",
+            "get": {
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "events",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/200"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/400"
+                    }
                 }
             }
         }

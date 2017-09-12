@@ -18,87 +18,167 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 
 #include "ahl-binding.h"
 #include "ahl-apidef.h" // Generated from JSON OpenAPI
 #include "wrap-json.h"
 
-// TODO: json_object_put to free JSON objects? potential leaks currently
+// Global high-level binding context
+AHLCtxT g_AHLCtx;
+
+// Workshop development topics:
+// - Associating streamID with a client id of afb. Has to be done with sessions?
+// - Declaring dependencies on other binding services (examples)
+// - json_object_put to free JSON objects? potential leaks currently
+// - no events on new HAL registered to alsacore?
+// - unregistering event subscription examples?
+// - discussion how to use property and event system to dispatch external parameterization (e.g. Wwise/Fiberdyne)
+// - discussion where to best isolate policy (controller or HLB plugin)
+// - Other HLB attributes to pass through (e.g. interrupted behavior) 
+// - DBScale TLV warning
+// - GLib (internal) dependency
+// - HAL registration dependency (initialization order)
+// - Binding startup arguments for config file path
+// - Can we use the same HAL for different card numbers?
+// - Example use of volume ramping in HAL?
+// - Binding termination function
+// - AGL persistence framework?
+// - How to provide API services with config.xml (secrets and all)
+
 
 // Helper macros/func for packaging JSON objects from C structures
-
 #define EndpointInfoStructToJSON(__JSON_OBJECT__, __ENDPOINTINFOSTRUCT__) \
-    wrap_json_pack(&__JSON_OBJECT__, "{s:i,s:i,s:s}", "endpoint_id", __ENDPOINTINFOSTRUCT__.endpoint_id, "type", __ENDPOINTINFOSTRUCT__.type, "name", __ENDPOINTINFOSTRUCT__.name);
-
-#define RoutingInfoStructToJSON(__JSON_OBJECT__, __ROUTINGINFOSTRUCT__) \
-    wrap_json_pack(&__JSON_OBJECT__, "{s:i,s:i,s:i}", "routing_id", __ROUTINGINFOSTRUCT__.routing_id, "source_id", __ROUTINGINFOSTRUCT__.source_id, "sink_id", __ROUTINGINFOSTRUCT__.sink_id);
-
+    wrap_json_pack(&__JSON_OBJECT__, "{s:i,s:i,s:s,s:i}",\
+                    "endpoint_id", __ENDPOINTINFOSTRUCT__.endpointID, \
+                    "endpoint_type", __ENDPOINTINFOSTRUCT__.type, \
+                    "device_name", __ENDPOINTINFOSTRUCT__.deviceName, \
+                    "device_uri_type", __ENDPOINTINFOSTRUCT__.deviceURIType);
+ 
 static void StreamInfoStructToJSON(json_object **streamInfoJ, StreamInfoT streamInfo)
 {
     json_object *endpointInfoJ;
-    EndpointInfoStructToJSON(endpointInfoJ,streamInfo.endpoint_info);
-    wrap_json_pack(streamInfoJ, "{s:i,s:s}", "stream_id", streamInfo.stream_id, "pcm_name", streamInfo.pcm_name);
+    EndpointInfoStructToJSON(endpointInfoJ,streamInfo.endpointInfo);
+    wrap_json_pack(streamInfoJ, "{s:i}", "stream_id", streamInfo.streamID);
     json_object_object_add(*streamInfoJ,"endpoint_info",endpointInfoJ);
+}
+
+static streamID_t CreateNewStreamID()
+{
+    streamID_t newID = g_AHLCtx.nextStreamID;
+    g_AHLCtx.nextStreamID++;
+    return newID;
+}
+
+static int FindRoleIndex( const char * in_pAudioRole)
+{
+    int index = -1; // Not found
+    for (int i = 0; i < g_AHLCtx.policyCtx.iNumberRoles; i++)
+    {
+        GString gs = g_array_index( g_AHLCtx.policyCtx.pAudioRoles, GString, i );
+        if ( strcasecmp(gs.str,in_pAudioRole) == 0 )
+            index = i;
+    }
+    return index;
+}
+
+static EndpointInfoT * GetEndpointInfo(endpointID_t in_endpointID, EndpointTypeT in_endpointType)
+{
+    EndpointInfoT * pEndpointInfo = NULL;
+    for (int i = 0; i < g_AHLCtx.policyCtx.iNumberRoles; i++)
+    {
+        GArray * pRoleDeviceArray = NULL;
+        if (in_endpointType == ENDPOINTTYPE_SOURCE){
+            pRoleDeviceArray = g_ptr_array_index( g_AHLCtx.policyCtx.pSourceEndpoints, i );
+        }
+        else{
+            pRoleDeviceArray = g_ptr_array_index( g_AHLCtx.policyCtx.pSinkEndpoints, i );
+        }
+        for (int j = 0; j < pRoleDeviceArray->len; j++) {
+            EndpointInfoT * pCurEndpointInfo = &g_array_index(pRoleDeviceArray,EndpointInfoT,j);
+            if (pCurEndpointInfo->endpointID == in_endpointID) {
+                pEndpointInfo = pCurEndpointInfo;
+                break;
+            }
+        }
+    }
+    return pEndpointInfo;
 }
 
 // Binding initialization
 PUBLIC int AhlBindingInit()
 {
-
     int errcount = 0;
+    int err = 0;
 
-    // Initialize list of available sources/sinks using lower level services
-    errcount += EnumerateSources();
-    errcount += EnumerateSinks();
+    // This API uses services from low level audio
+    err = afb_daemon_require_api_v2("alsacore",1) ;
+    if( err != 0 )
+    {
+        AFB_ERROR("Audio high level API requires alsacore API to be available");
+        return 1;
+    }
 
-    // TODO: Register for device changes from lower level services
+    // Parse high-level binding JSON configuration file (will build device lists)
+    errcount += ParseHLBConfig();
 
-    // TODO: Parse high-level binding configuration file
+    // Initialize list of active streams
+    g_AHLCtx.policyCtx.pActiveStreams = g_array_new(FALSE,TRUE,sizeof(StreamInfoT));
 
-    // TODO: Perform other binding initialization tasks
+    // TODO: Register for device changes ALSA low level audio service
+
+    // TODO: Perform other binding initialization tasks (e.g. broadcast service ready event?)
+
+    // TODO: Use AGL persistence framework to retrieve and set inital state/volumes/properties
 
     AFB_DEBUG("Audio high-level Binding success errcount=%d", errcount);
     return errcount;
 }
+
+// TODO: AhlBindingTerm()?
+// // TODO: Use AGL persistence framework to retrieve and set inital state/volumes
+
+// TODO: OnEventFunction
+// if ALSA device availability change -> update source / sink list
+// Call policy to attempt to assign role based on information (e.g. device name)
+// Policy should also determine priority (insert device in right spot in the list)
 
 PUBLIC void audiohlapi_get_sources(struct afb_req req)
 {
     json_object *sourcesJ = NULL;
     json_object *sourceJ = NULL;
     json_object *queryJ = NULL;
-    AudioRoleT audioRole = AUDIOROLE_MAXVALUE;
-    
+    char * audioRole = NULL;
+   
     queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s?i}", "audio_role", &audioRole);
+    int err = wrap_json_unpack(queryJ, "{s:s}", "audio_role", &audioRole);
     if (err) {
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
         return;
     }
 
-    if (audioRole != AUDIOROLE_MAXVALUE)
-    {
-        AFB_DEBUG("Filtering according to specified audio role=%d", audioRole);
-    }
-
-    // Fake run-time data for test purposes
-    EndpointInfoT sources[3];
-    sources[0].endpoint_id = 0;
-    sources[0].type = 0;
-    sources[0].name = "Source0";
-    sources[1].endpoint_id = 1;
-    sources[1].type = 1;
-    sources[1].name = "Source1";
-    sources[2].endpoint_id = 2;
-    sources[2].type = 2;
-    sources[2].name = "Source2";
-
     sourcesJ = json_object_new_array();
-    for ( unsigned int i = 0 ; i < 3; i++)
+
+    AFB_DEBUG("Filtering devices according to specified audio role=%s", audioRole);
+    // Check that the role requested exists in current configuration
+    int roleIndex = FindRoleIndex(audioRole);
+    if ( roleIndex == -1)
     {
-        EndpointInfoStructToJSON(sourceJ, sources[i]);
-        json_object_array_add(sourcesJ, sourceJ);
+        afb_req_fail_f(req, "Invalid arguments", "Requested audio role does not exist in current configuration -> %s", json_object_get_string(queryJ));
+        return;
     }
+    // List device only for current audio role and device type (pick the role device list)
+    int iRoleIndex = FindRoleIndex(audioRole);
+    if (iRoleIndex >= 0)
+    {
+        GArray * pRoleSourceDeviceArray = g_ptr_array_index( g_AHLCtx.policyCtx.pSourceEndpoints, iRoleIndex );
+        int iNumberDevices = pRoleSourceDeviceArray->len;
+        for ( int j = 0 ; j < iNumberDevices; j++)
+        {
+            EndpointInfoT sourceInfo = g_array_index(pRoleSourceDeviceArray,EndpointInfoT,j);
+            EndpointInfoStructToJSON(sourceJ, sourceInfo);
+            json_object_array_add(sourcesJ, sourceJ);
+        }
+    } 
 
     afb_req_success(req, sourcesJ, "List of sources");
 }
@@ -108,38 +188,38 @@ PUBLIC void audiohlapi_get_sinks(struct afb_req req)
     json_object *sinksJ = NULL;
     json_object *sinkJ = NULL;
     json_object *queryJ = NULL;
-    AudioRoleT audioRole = AUDIOROLE_MAXVALUE;
+    char * audioRole = NULL;
     
     queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s?i}", "audio_role", &audioRole);
+    int err = wrap_json_unpack(queryJ, "{s:s}", "audio_role", &audioRole);
     if (err) {
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
         return;
     }
 
-    if (audioRole != AUDIOROLE_MAXVALUE)
-    {
-        AFB_DEBUG("Filtering according to specified audio role=%d", audioRole);
-    }
-
-    // Fake run-time data for test purposes
-    EndpointInfoT sinks[3];
-    sinks[0].endpoint_id = 0;
-    sinks[0].type = 0;
-    sinks[0].name = "Sink0";
-    sinks[1].endpoint_id = 1;
-    sinks[1].type = 1;
-    sinks[1].name = "Sink1";
-    sinks[2].endpoint_id = 2;
-    sinks[2].type = 2;
-    sinks[2].name = "Sink2";
-
     sinksJ = json_object_new_array();
-    for ( unsigned int i = 0 ; i < 3; i++)
+
+    AFB_DEBUG("Filtering devices according to specified audio role=%s", audioRole);
+    // Check that the role requested exists in current configuration
+    int roleIndex = FindRoleIndex(audioRole);
+    if ( roleIndex == -1)
     {
-        EndpointInfoStructToJSON(sinkJ, sinks[i]);
-        json_object_array_add(sinksJ, sinkJ);
+        afb_req_fail_f(req, "Invalid arguments", "Requested audio role does not exist in current configuration -> %s", json_object_get_string(queryJ));
+        return;
     }
+    // List device only for current audio role and device type (pick the role device list)
+    int iRoleIndex = FindRoleIndex(audioRole);
+    if (iRoleIndex >= 0)
+    {
+        GArray * pRoleSinkDeviceArray = g_ptr_array_index( g_AHLCtx.policyCtx.pSinkEndpoints, iRoleIndex );
+        int iNumberDevices = pRoleSinkDeviceArray->len;
+        for ( int j = 0 ; j < iNumberDevices; j++)
+        {
+            EndpointInfoT sinkInfo = g_array_index(pRoleSinkDeviceArray,EndpointInfoT,j);
+            EndpointInfoStructToJSON(sinkJ, sinkInfo);
+            json_object_array_add(sinksJ, sinkJ);
+        }
+    } 
 
     afb_req_success(req, sinksJ, "List of sinks");
 }
@@ -149,30 +229,75 @@ PUBLIC void audiohlapi_stream_open(struct afb_req req)
     json_object *streamInfoJ = NULL;
     StreamInfoT streamInfo;
     json_object *queryJ = NULL;
-    AudioRoleT audioRole;
+    char * audioRole = NULL;
     EndpointTypeT endpointType;
     endpointID_t endpointID = UNDEFINED_ID;
+    int policyAllowed = 0;
+    EndpointInfoT endpointInfo;
     
     queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:i,s:i,s?i}", "audio_role", &audioRole, "endpoint_type", &endpointType, "endpoint_id", &endpointID);
+    int err = wrap_json_unpack(queryJ, "{s:s,s:i,s?i}", "audio_role", &audioRole, "endpoint_type", &endpointType, "endpoint_id", &endpointID);
     if (err) {
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
         return;
     }
-    AFB_DEBUG("Parsed input arguments = audio_role:%d endpointType:%d endpointID:%d", audioRole,endpointType,endpointID);
+    AFB_DEBUG("Parsed input arguments = audio_role:%s endpoint_type:%d endpoint_id:%d", audioRole,endpointType,endpointID);
+
+    int iRoleIndex = FindRoleIndex(audioRole);
+    if (iRoleIndex < 0) {
+        afb_req_fail_f(req, "Invalid audio role", "Audio role was not found in configuration -> %s",audioRole);
+        return;
+    }
+
+    GArray * pRoleDeviceArray = NULL;
+    if (endpointType == ENDPOINTTYPE_SOURCE){
+        pRoleDeviceArray = g_ptr_array_index( g_AHLCtx.policyCtx.pSourceEndpoints, iRoleIndex );
+    }
+    else{
+        pRoleDeviceArray = g_ptr_array_index( g_AHLCtx.policyCtx.pSinkEndpoints, iRoleIndex );
+    }
+    if (pRoleDeviceArray->len == 0) {
+        afb_req_fail_f(req, "No available devices", "No available devices for role:%s and device type:%d",audioRole,endpointType);
+        return;
+    }
 
     if (endpointID == UNDEFINED_ID)
     {
-        // TODO: Go through configuration and available devices to find best device for specified role
-        endpointID = 2;
+        // Assign a device based on configuration priority (first in the list for requested role and endpoint type)
+        endpointInfo = g_array_index(pRoleDeviceArray,EndpointInfoT,0);
+    }
+    else{
+        // Find specified endpoint ID in list of devices
+        int iNumberDevices = pRoleDeviceArray->len;
+        int iEndpointFound = 0;
+        for ( int j = 0 ; j < iNumberDevices; j++)
+        {
+            endpointInfo = g_array_index(pRoleDeviceArray,EndpointInfoT,j);
+            if (endpointInfo.endpointID == endpointID) {
+                iEndpointFound = 1;
+                break;
+            }
+        }
+        if (iEndpointFound == 0) {
+            afb_req_fail_f(req, "Endpoint not available", "Specified endpoint not available for role:%s and device type:%d endpoint id %d",audioRole,endpointType,endpointID);
+            return;
+        }
     }
 
-    // Fake run-time data for test purposes
-    streamInfo.stream_id = 12;
-    streamInfo.pcm_name = "plug:Entertainment";
-    streamInfo.endpoint_info.endpoint_id = endpointID;
-    streamInfo.endpoint_info.type = endpointType;
-    streamInfo.endpoint_info.name = "MainSpeakers"; 
+    // Call policy to verify whether creating a new audio stream is allowed in current context and possibly take other actions
+    policyAllowed = Policy_OpenStream(audioRole, endpointType, endpointID);
+    if (policyAllowed == AUDIOHL_POLICY_REJECT)
+    {
+        afb_req_fail(req, "Audio policy violation", "Open stream not allowed in current context");
+        return;
+    }
+
+    // Create stream
+    streamInfo.streamID = CreateNewStreamID(); // create new ID
+    streamInfo.endpointInfo = endpointInfo;
+
+    // Push stream on active stream list
+    g_array_append_val( g_AHLCtx.policyCtx.pActiveStreams, streamInfo );
 
     StreamInfoStructToJSON(&streamInfoJ,streamInfo);
 
@@ -194,103 +319,35 @@ PUBLIC void audiohlapi_stream_close(struct afb_req req)
 
     // TODO: Validate that the application ID from which the stream close is coming is the one that opened it, otherwise fail and do nothing
 
+    // Remove from active stream list (if present)
+    int iNumActiveStreams = g_AHLCtx.policyCtx.pActiveStreams->len;
+    int iStreamFound = 0;
+    for ( int i = 0; i < iNumActiveStreams ; i++ ) {
+        StreamInfoT streamInfo = g_array_index(g_AHLCtx.policyCtx.pActiveStreams,StreamInfoT,i);
+        if (streamInfo.streamID == streamID){
+            g_array_remove_index(g_AHLCtx.policyCtx.pActiveStreams,i);
+            iStreamFound = 1;
+            break;
+        }
+    }
+
+    if (iStreamFound == 0) {
+        afb_req_fail_f(req, "Stream not found", "Specified stream not currently active stream_id -> %d",streamID);
+        return;
+    }
+
     afb_req_success(req, NULL, "Stream close completed");
 }
 
-// Routings
-PUBLIC void audiohlapi_get_available_routings(struct afb_req req)
-{
-    json_object *routingsJ;
-    json_object *routingJ;
-    json_object *queryJ = NULL;
-    AudioRoleT audioRole = AUDIOROLE_MAXVALUE;
-    
-    queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s?i}", "audio_role", &audioRole);
-    if (err) {
-        afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
-        return;
-    }
-
-    if (audioRole != AUDIOROLE_MAXVALUE)
-    {
-        AFB_DEBUG("Filtering according to specified audio role=%d", audioRole);
-    }
-
-    // Fake run-time data for test purposes
-    RoutingInfoT routings[3];
-    routings[0].source_id = 0;
-    routings[0].sink_id = 0;
-    routings[0].routing_id = 0;
-    routings[1].source_id = 1;
-    routings[1].sink_id = 1;
-    routings[1].routing_id = 1;
-    routings[2].source_id = 2;
-    routings[2].sink_id = 2;
-    routings[2].routing_id = 2;
-
-    routingsJ = json_object_new_array();
-    for (unsigned int i = 0; i < 3; i++)
-    {
-        RoutingInfoStructToJSON(routingJ, routings[i]);
-        json_object_array_add(routingsJ, routingJ);
-    }
-
-    afb_req_success(req, routingsJ, "List of available routings");
-}
-
-PUBLIC void audiohlapi_add_routing(struct afb_req req)
-{
-    json_object *queryJ = NULL;
-    AudioRoleT audioRole = AUDIOROLE_MAXVALUE;
-    routingID_t routingID = UNDEFINED_ID;
-    json_object *routingJ = NULL;
-    
-    queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:i,s?i}", "audio_role", &audioRole,"routing_id",routingID);
-    if (err) {
-        afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
-        return;
-    }
-    AFB_DEBUG("Parsed input arguments = audio_role:%d routing_id:%d", audioRole,routingID);
-
-    // Fake run-time data for test purposes
-    RoutingInfoT routingInfo;
-    routingInfo.routing_id = routingID;
-    routingInfo.source_id = 3;
-    routingInfo.sink_id = 4;
-
-    RoutingInfoStructToJSON(routingJ,routingInfo);  
-
-    afb_req_success(req,routingJ, "Selected routing information");
-}
-
-PUBLIC void audiohlapi_remove_routing(struct afb_req req)
-{
-    json_object *queryJ = NULL;
-    routingID_t routingID = UNDEFINED_ID;
-    
-    queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:i}", "routing_id", &routingID);
-    if (err) {
-        afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
-        return;
-    }
-    AFB_DEBUG("Parsed input arguments = routing_id:%d", routingID);
-
-    // TODO: Validate that the application ID from which the stream close is coming is the one that opened it, otherwise fail and do nothing
-
-    afb_req_success(req, NULL, "Remove routing completed");
-}
-
 // Endpoints
-PUBLIC void audiohlapi_set_endpoint_volume(struct afb_req req)
+PUBLIC void audiohlapi_set_volume(struct afb_req req)
 {
     json_object *queryJ = NULL;
     endpointID_t endpointID = UNDEFINED_ID;
     EndpointTypeT endpointType = ENDPOINTTYPE_MAXVALUE;
     char * volumeStr = NULL;
     int rampTimeMS = 0;
+    int policyAllowed = 0;
     
     queryJ = afb_req_json(req);
     int err = wrap_json_unpack(queryJ, "{s:i,s:i,s:s,s?i}", "endpoint_type", &endpointType,"endpoint_id",&endpointID,"volume",&volumeStr,"ramp_time_ms",&rampTimeMS);
@@ -299,19 +356,57 @@ PUBLIC void audiohlapi_set_endpoint_volume(struct afb_req req)
         return;
     }
     AFB_DEBUG("Parsed input arguments = endpoint_type:%d endpoint_id:%d volume:%s ramp_time_ms: %d", endpointType,endpointID,volumeStr,rampTimeMS);
-  
+   
     // TODO: Parse volume string to support increment/absolute/percent notation
+    int vol = atoi(volumeStr);
 
+    policyAllowed = Policy_SetVolume(endpointType, endpointID, volumeStr, rampTimeMS); // TODO: Potentially retrieve modified value by policy (e.g. volume limit)
+    if (!policyAllowed)
+    {
+        afb_req_fail(req, "Audio policy violation", "Set volume not allowed in current context");
+        return;
+    }
+
+     // TODO: Cache during device enumeration for efficiency
+    EndpointInfoT * pEndpointInfo = GetEndpointInfo(endpointID,endpointType);
+    if (pEndpointInfo == NULL)
+    {
+        afb_req_fail_f(req, "Endpoint not found", "Endpoint information not found for id:%d type%d",endpointID,endpointType);
+        return;
+    }
+
+    // Using audio role available from endpoint to target the right HAL control (build string based on convention)
+    char halControlName[AUDIOHL_MAXHALCONTROLNAME_LENGTH];
+    strncpy(halControlName,pEndpointInfo->audioRole,AUDIOHL_MAXHALCONTROLNAME_LENGTH);
+    strcat(halControlName,"_Ramp"); // Or _Vol for direct control (no ramping)
+
+    // Set endpoint volume using HAL services (leveraging ramps etc.)
+    json_object *j_response, *j_query = NULL;
+ 
+    // Package query
+    err = wrap_json_pack(&j_query,"{s:s,s:i}","label",halControlName, "val",vol);
+    if (err) {
+        afb_req_fail_f(req, "Invalid query for HAL ctlset", "Invalid query for HAL ctlset: %s",json_object_to_json_string(j_query));
+        return;
+    }
+
+    // Set the volume using the HAL
+    err = afb_service_call_sync(pEndpointInfo->halAPIName, "ctlset", j_query, &j_response);
+    if (err) {
+        afb_req_fail_f(req, "HAL ctlset failure", "Could not ctlset on HAL: %s",pEndpointInfo->halAPIName);
+        return;
+    }
+    AFB_DEBUG("HAL ctlset response=%s", json_object_to_json_string(j_response));
+ 
     afb_req_success(req, NULL, "Set volume completed");
 }
 
-PUBLIC void audiohlapi_get_endpoint_volume(struct afb_req req)
+PUBLIC void audiohlapi_get_volume(struct afb_req req)
 {
     json_object *queryJ = NULL;
     endpointID_t endpointID = UNDEFINED_ID;
     EndpointTypeT endpointType = ENDPOINTTYPE_MAXVALUE;
     json_object *volumeJ;
-    double volume = 0.0;
     
     queryJ = afb_req_json(req);
     int err = wrap_json_unpack(queryJ, "{s:i,s:i}", "endpoint_type", &endpointType,"endpoint_id",&endpointID);
@@ -321,13 +416,55 @@ PUBLIC void audiohlapi_get_endpoint_volume(struct afb_req req)
     }
     AFB_DEBUG("Parsed input arguments = endpoint_type:%d endpoint_id:%d", endpointType,endpointID);
 
-    volume = 87.0; // TODO: Get actual volume value
-    volumeJ = json_object_new_double(volume);
+    // TODO: Cache during device enumeration for efficiency
+    EndpointInfoT * pEndpointInfo = GetEndpointInfo(endpointID,endpointType);
+    if (pEndpointInfo == NULL)
+    {
+        afb_req_fail_f(req, "Endpoint not found", "Endpoint information not found for id:%d type%d",endpointID,endpointType);
+        return;
+    }
+
+    // Using audio role available from endpoint to target the right HAL control (build string based on convention)
+    char halControlName[AUDIOHL_MAXHALCONTROLNAME_LENGTH];
+    strncpy(halControlName,pEndpointInfo->audioRole,AUDIOHL_MAXHALCONTROLNAME_LENGTH);
+    strcat(halControlName,"_Vol"); // Use current value, not ramp target
+
+    // Set endpoint volume using HAL services (leveraging ramps etc.)
+    json_object *j_response, *j_query = NULL;
+ 
+    // Package query
+    err = wrap_json_pack(&j_query,"{s:s}","label",halControlName);
+    if (err) {
+        afb_req_fail_f(req, "Invalid query for HAL ctlget", "Invalid query for HAL ctlget: %s",json_object_to_json_string(j_query));
+        return;
+    }
+
+    // Set the volume using the HAL
+    err = afb_service_call_sync(pEndpointInfo->halAPIName, "ctlget", j_query, &j_response);
+    if (err) {
+        afb_req_fail_f(req, "HAL ctlget failure", "Could not ctlget on HAL: %s",pEndpointInfo->halAPIName);
+        return;
+    }
+    AFB_INFO("HAL ctlget response=%s", json_object_to_json_string(j_response));
+
+    // Parse response
+    json_object * jRespObj = NULL;
+    json_object_object_get_ex(j_response, "response", &jRespObj);
+    json_object * jVal = NULL;
+    json_object_object_get_ex(jRespObj, "val", &jVal);
+    int val1 = 0, val2 = 0; // Why 2 values?      
+    err = wrap_json_unpack(jVal, "[ii]", &val1, &val2);
+    if (err) {
+        afb_req_fail_f(req,"Volume retrieve failed", "Could not retrieve volume value -> %s", json_object_get_string(jVal));
+        return;
+    }
+
+    volumeJ = json_object_new_double((double)val1);
 
     afb_req_success(req, volumeJ, "Retrieved volume value");
 }
 
-PUBLIC void audiohlapi_set_endpoint_property(struct afb_req req)
+PUBLIC void audiohlapi_set_property(struct afb_req req)
 {
     json_object *queryJ = NULL;
     endpointID_t endpointID = UNDEFINED_ID;
@@ -335,6 +472,7 @@ PUBLIC void audiohlapi_set_endpoint_property(struct afb_req req)
     char * propertyName = NULL;
     char * propValueStr = NULL;
     int rampTimeMS = 0;
+    int policyAllowed = 0;
     
     queryJ = afb_req_json(req);
     int err = wrap_json_unpack(queryJ, "{s:i,s:i,s:s,s:s,s?i}", "endpoint_type", &endpointType,"endpoint_id",&endpointID,"property_name",&propertyName,"value",&propValueStr,"ramp_time_ms",&rampTimeMS);
@@ -346,10 +484,23 @@ PUBLIC void audiohlapi_set_endpoint_property(struct afb_req req)
   
     // TODO: Parse property value string to support increment/absolute/percent notation
 
+    // Call policy to allow custom policy actions in current context
+    policyAllowed = Policy_SetProperty(endpointType, endpointID, propertyName, propValueStr, rampTimeMS); // TODO: Potentially retrieve modified value by policy (e.g. parameter limit) 
+    if (!policyAllowed)
+    {
+        afb_req_fail(req, "Audio policy violation", "Set endpoint property not allowed in current context");
+        return;
+    }
+
+    // TODO: Set endpoint property (dispatch on right service target) 
+    // Property targets (Internal,Wwise,Fiberdyne) (e.g. Wwise.ParamX, Fiberdyne.ParamY, Internal.ParamZ)
+    // Cache value in property list
+    // TBD
+
     afb_req_success(req, NULL, "Set property completed");
 }
 
-PUBLIC void audiohlapi_get_endpoint_property(struct afb_req req)
+PUBLIC void audiohlapi_get_property(struct afb_req req)
 {
     json_object *queryJ = NULL;
     endpointID_t endpointID = UNDEFINED_ID;
@@ -366,19 +517,22 @@ PUBLIC void audiohlapi_get_endpoint_property(struct afb_req req)
     }
     AFB_DEBUG("Parsed input arguments = endpoint_type:%d endpoint_id:%d property_name:%s", endpointType,endpointID,propertyName);
 
-    value = 93.0; // TODO: Get actual property value
+    // TODO: Retrieve cached property value
+
+    value = 93.0; // TODO: Get actual property value 
     propertyValJ = json_object_new_double(value);
 
     afb_req_success(req, propertyValJ, "Retrieved property value");
 }
 
-PUBLIC void audiohlapi_set_endpoint_state(struct afb_req req)
+PUBLIC void audiohlapi_set_state(struct afb_req req)
 {
     json_object *queryJ = NULL;
     endpointID_t endpointID = UNDEFINED_ID;
     EndpointTypeT endpointType = ENDPOINTTYPE_MAXVALUE;
     char * stateName = NULL;
     char * stateValue = NULL;
+    int policyAllowed = 0;
     
     queryJ = afb_req_json(req);
     int err = wrap_json_unpack(queryJ, "{s:i,s:i,s:s,s:s}", "endpoint_type", &endpointType,"endpoint_id",&endpointID,"state_name",&stateName,"state_value",&stateValue);
@@ -388,10 +542,28 @@ PUBLIC void audiohlapi_set_endpoint_state(struct afb_req req)
     }
     AFB_DEBUG("Parsed input arguments = endpoint_type:%d endpoint_id:%d state_name:%s state_value:%s", endpointType,endpointID,stateName,stateValue);
 
+    // Check that state provided is within list of known state for this config
+    char * pDefaultStateValue = g_hash_table_lookup(g_AHLCtx.pDefaultStatesHT, stateName);
+    if (pDefaultStateValue == NULL)
+    {
+        afb_req_fail_f(req, "Invalid arguments", "State provided is not known to configuration query=%s", stateName);
+        return;
+    }
+
+    // Call policy to allow custom policy actions in current context
+    policyAllowed = Policy_SetState(endpointType, endpointID, stateName, stateValue); // TODO: Potentially retrieve modified value by policy (e.g. state change) 
+    if (!policyAllowed)
+    {
+        afb_req_fail(req, "Audio policy violation", "Set endpoint state not allowed in current context");
+        return;
+    }
+
+    // Change the state of the endpoint as requested
+
     afb_req_success(req, NULL, "Set endpoint state completed");
 }
 
-PUBLIC void audiohlapi_get_endpoint_state(struct afb_req req)
+PUBLIC void audiohlapi_get_state(struct afb_req req)
 {
     json_object *queryJ = NULL;
     endpointID_t endpointID = UNDEFINED_ID;
@@ -409,6 +581,7 @@ PUBLIC void audiohlapi_get_endpoint_state(struct afb_req req)
     AFB_DEBUG("Parsed input arguments = endpoint_type:%d endpoint_id:%d state_name:%s", endpointType,endpointID,stateName);
 
     stateValJ = json_object_new_string(stateValue);
+    // return cached value
 
     afb_req_success(req, stateValJ, "Retrieved state value");
 }
@@ -419,18 +592,27 @@ PUBLIC void audiohlapi_post_sound_event(struct afb_req req)
     json_object *queryJ = NULL;
     char * eventName = NULL;
     char * mediaName = NULL;
-    AudioRoleT audioRole;
+    char * audioRole = NULL;
     json_object *audioContext = NULL;
+    int policyAllowed = 0;
     
     queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:s,s?i,s?s,s?o}", "event_name", &eventName,"audio_role",&audioRole,"media_name",&mediaName,"audio_context",&audioContext);
+    int err = wrap_json_unpack(queryJ, "{s:s,s:s,s?s,s?o}", "event_name", &eventName,"audio_role",&audioRole,"media_name",&mediaName,"audio_context",&audioContext);
     if (err) {
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
         return;
     }
-    AFB_DEBUG("Parsed input arguments = event_name:%s audio_role:%d media_name:%s", eventName,audioRole,mediaName);
+    AFB_DEBUG("Parsed input arguments = event_name:%s audio_role:%s media_name:%s", eventName,audioRole,mediaName);
 
-    // TODO: Post sound event to rendering services
+    // Call policy to allow custom policy actions in current context (e.g. cancel playback)
+    policyAllowed = Policy_PostSoundEvent(eventName, audioRole, mediaName, (void*)audioContext); // TODO: Potentially retrieve modified value by policy (e.g. change media) 
+    if (!policyAllowed)
+    {
+        afb_req_fail(req, "Audio policy violation", "Post sound event not allowed in current context");
+        return;
+    }
+
+    // TODO: Post sound event to rendering services (e.g. gstreamer file player wrapper or simple ALSA player)
 
     afb_req_success(req, NULL, "Posted sound event");
  }
@@ -445,6 +627,18 @@ PUBLIC void audiohlapi_subscribe(struct afb_req req)
 
     // TODO: Iterate through array length, parsing the string value to actual events
     // TODO: Subscribe to appropriate events from other services
+
+    afb_req_success(req, NULL, "Subscribe to events finished");
+}
+
+PUBLIC void audiohlapi_unsubscribe(struct afb_req req)
+{
+    // json_object *queryJ = NULL;
+    
+    // queryJ = afb_req_json(req);
+
+    // TODO: Iterate through array length, parsing the string value to actual events
+    // TODO: Unsubscribe to appropriate events from other services
 
     afb_req_success(req, NULL, "Subscribe to events finished");
 }
