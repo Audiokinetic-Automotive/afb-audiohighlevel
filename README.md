@@ -10,6 +10,7 @@
 git clone https://github.com/Audiokinetic-Automotive/afb-audiohighlevel.git
 cd  afb-audiohighlevel
 
+```
 
 # AFB-daemon dependencies
 -------------------------------------------------------
