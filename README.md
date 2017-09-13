@@ -7,13 +7,9 @@
 
 ```
 # Initial clone with submodules
-git clone --recurse-submodules https://github.com/Audiokinetic-Automotive/afb-audiohighlevel.git
-cd  audio-binding
+git clone https://github.com/Audiokinetic-Automotive/afb-audiohighlevel.git
+cd  afb-audiohighlevel
 
-# Do not forget submodules with pulling
-git pull --recurse-submodules https://github.com/Audiokinetic-Automotive/afb-audiohighlevel.git
-
-```
 
 # AFB-daemon dependencies
 -------------------------------------------------------
