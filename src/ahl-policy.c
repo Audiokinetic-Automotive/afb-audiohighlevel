@@ -55,23 +55,9 @@ PUBLIC int Policy_SetProperty(EndpointTypeT endpointType, endpointID_t endpointI
 PUBLIC int Policy_SetState(EndpointTypeT endpointType, endpointID_t endpointID, char *pStateName, char *pStateValue)
 {
 
-
-    //Mute
-    if(strcmp(pStateName, AUDIOHL_STATE_NAME_MUTE) == 0)
-    {
-        if(strcmp(pStateName, AUDIOHL_STATE_NAME_MUTE) == 0)
-
-
-        return AUDIOHL_POLICY_ACCEPT;    
-    }
-
-    //Retrieve global context 
-
-
     //Active rule check
  
     //Ducking rule settings
-
 
     return AUDIOHL_POLICY_ACCEPT;    
 }
