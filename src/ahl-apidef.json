@@ -1,6 +1,5 @@
 {
     "openapi": "3.0.0",
-    "$schema": "http:iot.bzh/download/openapi/schema-3.0/default-schema.json",
     "info": {
         "description": "Audio high level API for AGL applications",
         "title": "audiohighlevel",
@@ -11,7 +10,7 @@
             "prefix": "audiohlapi_",
             "postfix": "",
             "start": null,
-            "onevent": null,
+            "onevent": "AhlOnEvent",
             "init": "AhlBindingInit",
             "scope": "",
             "private": false
@@ -107,23 +106,23 @@
             },
             "stream_info": {
                 "type": "object",
-                "required": [ "stream_id", "endpoint_info" ],
+                "required": [ "stream_id", "state", "mute", "endpoint_info" ],
                 "properties": {
                     "stream_id": { "type": "int" },
+                    "state": { "type": "int" },
+                    "mute": { "type": "int" },
+                    "device_uri": { "type": "string" },
                     "$ref": "#/components/schemas/endpoint_info"
                 }
             }
         },
         "x-permissions": {
-            "streamcontrol": {
-                "permission": "urn:AGL:permission:audio:public:streamcontrol"
-            },
-            "routingcontrol": {
-                "permission": "urn:AGL:permission:audio:public:routingcontrol"
-            },
-            "soundevent": {
-                "permission": "urn:AGL:permission:audio:public:soundevent"
-            }
+            "streamcontrol": { "permission": "urn:AGL:permission:audio:public:streamcontrol"},
+            "routingcontrol": { "permission": "urn:AGL:permission:audio:public:routingcontrol"},
+            "audiostream": { "permission": "urn:AGL:permission:audio:public:audiostream"},
+            "prioritysignal": { "permission": "urn:AGL:permission:audio:public:prioritysignal"},
+            "soundevent": {"permission": "urn:AGL:permission:audio:public:soundevent"},
+            "streammonitor": {"permission": "urn:AGL:permission:audio:public:streammonitor"}
         },
         "responses": {
             "200": {
@@ -194,7 +193,7 @@
         "/stream_open": {
             "description": "Request opening a stream",
             "get": {
-                "x-permissions": { "$ref": "#/components/x-permissions/streamcontrol" },
+                "x-permissions": { "$ref": "#/components/x-permissions/audiostream" },
                 "parameters": [
                     {
                         "in": "query",
@@ -230,7 +229,7 @@
         "/stream_close": {
             "description": "Request closing a stream",
             "get": {
-                "x-permissions": { "$ref": "#/components/x-permissions/streamcontrol" },
+                "x-permissions": { "$ref": "#/components/x-permissions/audiostream" },
                 "parameters": [
                     {
                         "in": "query",
@@ -241,6 +240,88 @@
                 ],
                 "responses": {
                     "200": { "$ref": "#/components/responses/200" },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/set_stream_state": {
+            "description": "Change stream active state",
+            "get": {
+                "x-permissions": {
+                    "$ref": "#/components/x-permissions/streamcontrol"
+                },
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "stream_id",
+                        "required": true,
+                        "schema": {"type": "int"}
+                    },
+                    {
+                        "in": "query",
+                        "name": "state",
+                        "required": true,
+                        "schema": {"type": "int"}
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/200"
+                    },
+                    "400": {
+                        "$ref": "#/components/responses/400"
+                    }
+                }
+            }
+        },
+        "/set_stream_mute": {
+            "description": "Change stream mute state",
+            "get": {
+                "x-permissions": {
+                    "$ref": "#/components/x-permissions/streamcontrol"
+                },
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "stream_id",
+                        "required": true,
+                        "schema": {"type": "int"}
+                    },
+                    {
+                        "in": "query",
+                        "name": "mute",
+                        "required": true,
+                        "schema": {"type": "int"}
+                    }
+                ],
+                "responses": {
+                    "200": { "$ref": "#/components/responses/200" },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
+        "/get_stream_info": {
+            "description": "Retrieve stream information",
+            "get": {
+                "x-permissions": {
+                    "$ref": "#/components/x-permissions/streamcontrol"
+                },
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "stream_id",
+                        "required": true,
+                        "schema": {"type": "int"}
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "$ref": "#/components/responses/200",
+                        "response": {
+                            "description": "Stream information structure",
+                            "$ref": "#/components/schemas/stream_info"
+                        }
+                    },
                     "400": { "$ref": "#/components/responses/400" }
                 }
             }
@@ -267,12 +348,6 @@
                         "name": "volume",
                         "required": true,
                         "schema": { "type": "string" }
-                    },
-                    {
-                        "in": "query",
-                        "name": "ramp_time_ms",
-                        "required": false,
-                        "schema": { "type": "int" }
                     }
                 ],
                 "responses": {
@@ -310,6 +385,29 @@
                 }
             }
         },
+        "/get_list_properties": {
+            "description": "Retrieve a list of supported properties for a particular endpoint",
+            "get": {
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "endpoint_type",
+                        "required": true,
+                        "schema": { "type": "enum" }
+                    },
+                    {
+                        "in": "query",
+                        "name": "endpoint_id",
+                        "required": false,
+                        "schema": { "type": "int" }
+                    }
+                ],
+                "responses": {
+                    "200": { "$ref": "#/components/responses/200" },
+                    "400": { "$ref": "#/components/responses/400" }
+                }
+            }
+        },
         "/set_property": {
             "description": "Set property value",
             "get": {
@@ -338,12 +436,6 @@
                         "name": "value",
                         "required": true,
                         "schema": { "type": "string" }
-                    },
-                    {
-                        "in": "query",
-                        "name": "ramp_time_ms",
-                        "required": false,
-                        "schema": { "type": "int" }
                     }
                 ],
                 "responses": {
@@ -387,79 +479,29 @@
                 }
             }
         },
-        "/set_state": {
-            "description": "Set state",
-            "get": {
-                "x-permissions": { "$ref": "#/components/x-permissions/streamcontrol" },
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "endpoint_type",
-                        "required": true,
-                        "schema": { "type": "enum" }
-                    },
-                    {
-                        "in": "query",
-                        "name": "endpoint_id",
-                        "required": true,
-                        "schema": { "type": "int" }
-                    },
-                    {
-                        "in": "query",
-                        "name": "state_name",
-                        "required": true,
-                        "schema": { "type": "string" }
-                    },
-                    {
-                        "in": "query",
-                        "name": "state_value",
-                        "required": true,
-                        "schema": { "type": "string" }
-                    }
-                ],
-                "responses": {
-                    "200": { "$ref": "#/components/responses/200" },
-                    "400": { "$ref": "#/components/responses/400" }
-                }
-            }
-        },
-        "/get_state": {
-            "description": "Get state value",
+        "/get_list_events": {
+            "description": "Retrieve a list of supported events for a particular audio role",
             "get": {
                 "parameters": [
                     {
                         "in": "query",
-                        "name": "endpoint_type",
-                        "required": true,
-                        "schema": { "type": "enum" }
-                    },
-                    {
-                        "in": "query",
-                        "name": "endpoint_id",
-                        "required": true,
-                        "schema": { "type": "int" }
-                    },
-                    {
-                        "in": "query",
-                        "name": "state_name",
+                        "name": "audio_role",
                         "required": true,
                         "schema": { "type": "string" }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "$ref": "#/components/responses/200",
-                        "response": {
-                            "description": "Endpoint state value",
-                            "type": "string"
-                        }
+                        "$ref": "#/components/responses/200"
                     },
-                    "400": { "$ref": "#/components/responses/400" }
+                    "400": {
+                        "$ref": "#/components/responses/400"
+                    }
                 }
             }
         },
-        "/post_sound_event": {
-            "description": "Post sound event",
+        "/post_event": {
+            "description": "Post sound or audio device related event (extendable mechanism)",
             "get": {
                 "x-permissions": { "$ref": "#/components/x-permissions/soundevent" },
                 "parameters": [
@@ -483,7 +525,7 @@
                     },
                     {
                         "in": "query",
-                        "name": "audio_context",
+                        "name": "event_context",
                         "required": false,
                         "schema": { "type": "object" }
                     }
@@ -530,12 +572,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "$ref": "#/components/responses/200"
-                    },
-                    "400": {
-                        "$ref": "#/components/responses/400"
-                    }
+                    "200": { "$ref": "#/components/responses/200" },
+                    "400": { "$ref": "#/components/responses/400" }
                 }
             }
         }

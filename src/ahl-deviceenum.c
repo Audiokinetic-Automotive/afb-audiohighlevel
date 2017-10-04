@@ -62,22 +62,22 @@ static int SeparateDomainFromDeviceURI( char * in_pDeviceURI, char ** out_pDomai
 
 static int IsAlsaDomain(const char * in_pDomainStr)
 {
-    return (int) (strcasecmp(in_pDomainStr,AUDIOHL_DOMAIN_ALSA) == 0);
+    return (int) (strcasecmp(in_pDomainStr,AHL_DOMAIN_ALSA) == 0);
 }
 
 static int IsPulseDomain(const char * in_pDomainStr)
 {
-    return (int) (strcasecmp(in_pDomainStr,AUDIOHL_DOMAIN_PULSE) == 0);
+    return (int) (strcasecmp(in_pDomainStr,AHL_DOMAIN_PULSE) == 0);
 }
 
 static int IsGStreamerDomain(const char * in_pDomainStr)
 {
-    return (int) (strcasecmp(in_pDomainStr,AUDIOHL_DOMAIN_GSTREAMER) == 0);
+    return (int) (strcasecmp(in_pDomainStr,AHL_DOMAIN_GSTREAMER) == 0);
 }
 
 static int IsExternalDomain(const char * in_pDomainStr)
 {
-    return (int) (strcasecmp(in_pDomainStr,AUDIOHL_DOMAIN_EXTERNAL) == 0);
+    return (int) (strcasecmp(in_pDomainStr,AHL_DOMAIN_EXTERNAL) == 0);
 }
 
 static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndpointInfo )         
@@ -130,11 +130,11 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
         goto End;
         // Could potentially assign a "default" name and carry on with this device
     }
-    strncpy(out_pEndpointInfo->deviceName,pDeviceName,AUDIOHL_MAX_DEVICE_NAME_LENGTH); // Overwritten by HAL name if available
+    g_string_assign(out_pEndpointInfo->gsDeviceName,pDeviceName); // Overwritten by HAL name if available
 
     // get card number
-    out_pEndpointInfo->cardNum = snd_pcm_info_get_card(pPcmInfo);
-    if ( out_pEndpointInfo->cardNum < 0 )
+    out_pEndpointInfo->alsaInfo.cardNum = snd_pcm_info_get_card(pPcmInfo);
+    if ( out_pEndpointInfo->alsaInfo.cardNum < 0 )
     {
         AFB_WARNING("No Alsa card number available");
         retVal = 1;
@@ -142,8 +142,8 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
     }
     
     // get device number
-    out_pEndpointInfo->deviceNum = snd_pcm_info_get_device(pPcmInfo);
-    if ( out_pEndpointInfo->deviceNum < 0 )
+    out_pEndpointInfo->alsaInfo.deviceNum = snd_pcm_info_get_device(pPcmInfo);
+    if ( out_pEndpointInfo->alsaInfo.deviceNum < 0 )
     {
         AFB_WARNING("No Alsa device number available");
         retVal = 1;
@@ -151,8 +151,8 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
     }
 
     // get sub-device number
-    out_pEndpointInfo->subDeviceNum = snd_pcm_info_get_subdevice(pPcmInfo);
-    if ( out_pEndpointInfo->subDeviceNum < 0 )
+    out_pEndpointInfo->alsaInfo.subDeviceNum = snd_pcm_info_get_subdevice(pPcmInfo);
+    if ( out_pEndpointInfo->alsaInfo.subDeviceNum < 0 )
     {
         AFB_WARNING("No Alsa subdevice number available");
         retVal = 1;
@@ -199,9 +199,9 @@ static int RetrieveAssociatedHALAPIName(EndpointInfoT * io_pEndpointInfo)
 
         // Retrieve card number (e.g. hw:0)
         int iCardNum = atoi(pDevIDStr+3);
-        if (iCardNum == io_pEndpointInfo->cardNum) {
-            strncpy(io_pEndpointInfo->halAPIName,pAPIName,AUDIOHL_MAX_AUDIOROLE_LENGTH);
-            strncpy(io_pEndpointInfo->deviceName,pShortName,AUDIOHL_MAX_DEVICE_NAME_LENGTH);
+        if (iCardNum == io_pEndpointInfo->alsaInfo.cardNum) {
+            g_string_assign(io_pEndpointInfo->gsHALAPIName,pAPIName);
+            g_string_assign(io_pEndpointInfo->gsDeviceName,pShortName);
             found = 1;
             break;
         }
@@ -209,20 +209,79 @@ static int RetrieveAssociatedHALAPIName(EndpointInfoT * io_pEndpointInfo)
     return !found;
 }
 
-static int InitializeEndpointStates( EndpointInfoT * out_pEndpointInfo )
+static void InitEndpointInfo( EndpointInfoT * out_pEndpointInfo )
 {
-    //out_pEndpointInfo = g_array_sized_new(FALSE,TRUE,sizeof)
-    // for list of known states
-    return 0;
+    out_pEndpointInfo->endpointID = AHL_UNDEFINED;
+    out_pEndpointInfo->type = ENDPOINTTYPE_MAXVALUE;
+    out_pEndpointInfo->gsDeviceName = g_string_new("Unassigned");
+    out_pEndpointInfo->gsDeviceURI = g_string_new("Unassigned");
+    out_pEndpointInfo->deviceURIType = DEVICEURITYPE_MAXVALUE;
+    out_pEndpointInfo->gsAudioRole = g_string_new("Unassigned");
+    out_pEndpointInfo->gsHALAPIName = g_string_new("Unassigned");
+    out_pEndpointInfo->alsaInfo.cardNum = AHL_UNDEFINED;
+    out_pEndpointInfo->alsaInfo.deviceNum = AHL_UNDEFINED;
+    out_pEndpointInfo->alsaInfo.subDeviceNum = AHL_UNDEFINED;
+    out_pEndpointInfo->format.sampleRate = AHL_UNDEFINED;
+    out_pEndpointInfo->format.numChannels = AHL_UNDEFINED;
+    out_pEndpointInfo->format.sampleType = AHL_FORMAT_UNKNOWN;
+    out_pEndpointInfo->pPropTable = g_hash_table_new(g_str_hash, g_str_equal);
 }
 
+static void TermEndpointInfo( EndpointInfoT * out_pEndpointInfo )
+{
+    g_string_free(out_pEndpointInfo->gsDeviceName,TRUE);
+    g_string_free(out_pEndpointInfo->gsDeviceURI,TRUE);
+    g_string_free(out_pEndpointInfo->gsAudioRole,TRUE);
+    g_string_free(out_pEndpointInfo->gsHALAPIName,TRUE);
+    // TODO: Free json_object for all property values
+    g_hash_table_remove_all(out_pEndpointInfo->pPropTable);
+    g_hash_table_destroy(out_pEndpointInfo->pPropTable);
+}
+
+void TermEndpoints()
+{
+    // Sources for each role
+    for (int i = 0; i < g_AHLCtx.policyCtx.pSourceEndpoints->len; i++)
+    {
+        // For each endpoint within the role
+        GArray * pRoleDeviceArray = g_ptr_array_index( g_AHLCtx.policyCtx.pSourceEndpoints, i );
+        for (int j = 0 ; j < pRoleDeviceArray->len; j++)
+        {
+            EndpointInfoT * pEndpointInfo = &g_array_index(pRoleDeviceArray,EndpointInfoT,j);
+            TermEndpointInfo(pEndpointInfo);
+        }
+        g_array_free(pRoleDeviceArray,TRUE);
+        pRoleDeviceArray = NULL;
+    }
+    g_ptr_array_free(g_AHLCtx.policyCtx.pSourceEndpoints,TRUE);
+    g_AHLCtx.policyCtx.pSourceEndpoints = NULL;
+
+    // Sinks for each role
+    for (int i = 0; i < g_AHLCtx.policyCtx.pSinkEndpoints->len; i++)
+    {
+        // For each endpoint within the role
+        GArray * pRoleDeviceArray = g_ptr_array_index( g_AHLCtx.policyCtx.pSinkEndpoints, i );
+        for (int j = 0 ; j < pRoleDeviceArray->len; j++)
+        {
+            EndpointInfoT * pEndpointInfo = &g_array_index(pRoleDeviceArray,EndpointInfoT,j);
+            TermEndpointInfo(pEndpointInfo);
+        }
+        g_array_free(pRoleDeviceArray,TRUE);
+        pRoleDeviceArray = NULL;
+    }
+    g_ptr_array_free(g_AHLCtx.policyCtx.pSinkEndpoints,TRUE);
+    g_AHLCtx.policyCtx.pSinkEndpoints = NULL;
+}
+
+#define AUDIOHL_MAX_DEVICE_URI_LENGTH 128
+
 // For a given audio role
-PUBLIC int EnumerateSources(json_object * in_jSourceArray, int in_iRoleIndex, char * in_pRoleName) {
+int EnumerateSources(json_object * in_jSourceArray, int in_iRoleIndex, char * in_pRoleName) {
 
     int iNumberDevices = json_object_array_length(in_jSourceArray);
 
     // Parse and validate list of available devices
-    for (unsigned int i = 0; i < iNumberDevices; i++)
+    for (int i = 0; i < iNumberDevices; i++)
     {
         char fullDeviceURI[AUDIOHL_MAX_DEVICE_URI_LENGTH]; // strtok is destructive
         char * pDeviceURIDomain = NULL;
@@ -242,13 +301,12 @@ PUBLIC int EnumerateSources(json_object * in_jSourceArray, int in_iRoleIndex, ch
             AFB_WARNING("Invalid device URI string -> %s",fullDeviceURI);
             continue;
         }
+
+        InitEndpointInfo(&endpointInfo);
         
         // non ALSA URI are simply passed to application (no validation) at this time 
         // In Non ALSA case devices in config are assumed to be available, if not application can fallback on explicit device selection 
-        endpointInfo.cardNum = -1;
-        endpointInfo.deviceNum = -1;
-        endpointInfo.cardNum = -1;
-        strncpy(endpointInfo.deviceName,pDeviceURIPCM,AUDIOHL_MAX_DEVICE_NAME_LENGTH); // Overwritten by HAL name if available
+        g_string_assign(endpointInfo.gsDeviceName,pDeviceURIPCM); // Overwritten by HAL name if available
 
         if (IsAlsaDomain(pDeviceURIDomain))
         {
@@ -275,10 +333,11 @@ PUBLIC int EnumerateSources(json_object * in_jSourceArray, int in_iRoleIndex, ch
 
             snd_pcm_close(pPcmHandle);
 
+            // TODO: Consider policy call to determine URI for set volume execution for a particular role (hw?)
             // Retrieve HAL API name
             err = RetrieveAssociatedHALAPIName(&endpointInfo);
             if (err) {
-                AFB_WARNING("SetVolume will fail without HAL association ->%s",endpointInfo.deviceURI);
+                AFB_WARNING("SetVolume will fail without HAL association ->%s",endpointInfo.gsDeviceURI->str);
                 // Choose not to skip anyhow...
             }
         }
@@ -302,16 +361,15 @@ PUBLIC int EnumerateSources(json_object * in_jSourceArray, int in_iRoleIndex, ch
             continue;
         }
 
-        err = InitializeEndpointStates( &endpointInfo );
-        if (err) {
-            AFB_ERROR("Cannot initialize endpoint states for URI -> %s",fullDeviceURI);
-            continue;
-        }
-
-        strncpy(endpointInfo.deviceURI,pDeviceURIPCM,AUDIOHL_MAX_DEVICE_URI_LENGTH);
-        strncpy(endpointInfo.audioRole,in_pRoleName,AUDIOHL_MAX_AUDIOROLE_LENGTH);
+        g_string_assign(endpointInfo.gsDeviceURI,pDeviceURIPCM);
+        g_string_assign(endpointInfo.gsAudioRole,in_pRoleName);
         endpointInfo.endpointID = CreateNewSourceID();
         endpointInfo.type = ENDPOINTTYPE_SOURCE;
+        err = Policy_Endpoint_Property_Init(&endpointInfo);
+        if (err) {
+            AFB_WARNING("Policy endpoint properties initalization failed for endpointid :%d type:%d",endpointInfo.endpointID, endpointInfo.type);
+            // Choose not to skip anyhow...
+        }
 
         // add to structure to list of available source devices
         GArray * pRoleSourceDeviceArray = g_ptr_array_index( g_AHLCtx.policyCtx.pSourceEndpoints, in_iRoleIndex );
@@ -324,12 +382,12 @@ PUBLIC int EnumerateSources(json_object * in_jSourceArray, int in_iRoleIndex, ch
 }
 
 // For a given audio role
-PUBLIC int EnumerateSinks(json_object * in_jSinkArray, int in_iRoleIndex, char * in_pRoleName) {
+int EnumerateSinks(json_object * in_jSinkArray, int in_iRoleIndex, char * in_pRoleName) {
 
     int iNumberDevices = json_object_array_length(in_jSinkArray);
 
     // Parse and validate list of available devices
-    for (unsigned int i = 0; i < iNumberDevices; i++)
+    for (int i = 0; i < iNumberDevices; i++)
     {
         char fullDeviceURI[AUDIOHL_MAX_DEVICE_URI_LENGTH]; // strtok is destructive
         char * pDeviceURIDomain = NULL;
@@ -353,10 +411,12 @@ PUBLIC int EnumerateSinks(json_object * in_jSinkArray, int in_iRoleIndex, char *
         // non ALSA URI are simply passed to application (no validation) at this time 
         // In Non ALSA case devices in config are assumed to be available, if not application can fallback on explicit device selection 
 
-        endpointInfo.cardNum = -1;
-        endpointInfo.deviceNum = -1;
-        endpointInfo.cardNum = -1;
-        strncpy(endpointInfo.deviceName,pDeviceURIPCM,AUDIOHL_MAX_DEVICE_NAME_LENGTH);
+        InitEndpointInfo(&endpointInfo);
+
+        endpointInfo.alsaInfo.cardNum = -1;
+        endpointInfo.alsaInfo.deviceNum = -1;
+        endpointInfo.alsaInfo.cardNum = -1;
+        g_string_assign(endpointInfo.gsDeviceName,pDeviceURIPCM);
 
         if (IsAlsaDomain(pDeviceURIDomain))
         {
@@ -383,6 +443,7 @@ PUBLIC int EnumerateSinks(json_object * in_jSinkArray, int in_iRoleIndex, char *
 
             snd_pcm_close(pPcmHandle);
 
+            // TODO: Consider policy call to determine URI for set volume execution for a particular role (hw?)
             // Retrieve HAL API name
             err = RetrieveAssociatedHALAPIName(&endpointInfo);
             if (err) {
@@ -412,16 +473,15 @@ PUBLIC int EnumerateSinks(json_object * in_jSinkArray, int in_iRoleIndex, char *
             continue;
         }
 
-        err = InitializeEndpointStates( &endpointInfo );
-        if (err) {
-            AFB_ERROR("Cannot initialize endpoint states for URI -> %s",fullDeviceURI);
-            continue;
-        }
-
-        strncpy(endpointInfo.deviceURI,pDeviceURIPCM,AUDIOHL_MAX_DEVICE_URI_LENGTH);
-        strncpy(endpointInfo.audioRole,in_pRoleName,AUDIOHL_MAX_AUDIOROLE_LENGTH);
+        g_string_assign(endpointInfo.gsDeviceURI,pDeviceURIPCM);
+        g_string_assign(endpointInfo.gsAudioRole,in_pRoleName);
         endpointInfo.endpointID = CreateNewSinkID();
         endpointInfo.type = ENDPOINTTYPE_SINK;
+        err = Policy_Endpoint_Property_Init(&endpointInfo);
+        if (err) {
+            AFB_WARNING("Policy endpoint properties initalization failed for endpointid :%d type:%d",endpointInfo.endpointID, endpointInfo.type);
+            // Choose not to skip anyhow...
+        }
 
         // add to structure to list of available source devices
         GArray * pRoleSinkDeviceArray = g_ptr_array_index( g_AHLCtx.policyCtx.pSinkEndpoints, in_iRoleIndex );

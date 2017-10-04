@@ -81,27 +81,13 @@
         <select select_id='property_name_list' onclick='p_name=this.value'>
         <option value='balance'>Balance</option>
         <option value='fade'>Fade</option>
-        <option value='eq_low'>EQ Low</option>
+        <option value='eq_bass'>EQ Bass</option>
         <option value='eq_mid'>EQ Mid</option>
-        <option value='eq_high'>EQ High</option>
+        <option value='eq_treble'>EQ Treble</option>
         <option selected value=''>Select...</option>
     </select>
-
-    <b>State Name</b>
-    <select select_id='state_name_list' onclick='st_name=this.value'>
-        <option value='mute'>Mute</option>
-        <option value='active'>Active</option>
-        <option selected value=''>Select...</option>
-    </select>
-
-    <b>State Value</b>
-    <select select_id='state_value_list' onclick='st_val=this.value'>
-        <option value='on'>On</option>
-        <option value='off'>Off</option>
-        <option selected value=''>Select...</option>
-    </select> 
-    <b>Volume Value</b>
-    <select select_id='value_list' onclick='val=this.value'>
+    <b>Volume/Property Value</b>
+        <select select_id='value_list' onclick='val=this.value'>
         <option value='0'>0</option>
         <option value='20'>20</option>
         <option value='40'>40</option>
@@ -111,6 +97,14 @@
         <option selected value=''>Select...</option>
     </select>
 
+    <b>Stream Active/Mute State</b>
+    <select select_id='state_value_list' onclick='st_state=this.selectedIndex'>
+        <option value='off'>Off</option>
+        <option value='on'>On</option>
+        <option selected value=''>Select...</option>
+    </select>
+
+
     <br>
     <ol>
     <li><button onclick="callbinder('audiohl','get_sources', {audio_role:ar})">get_sources(audio_role)</button></li>
@@ -118,15 +112,18 @@
     <li><button onclick="callbinder('audiohl','stream_open', {audio_role:ar,endpoint_type:ep_type})">stream_open(audio_role,endpoint_type)</button></li>
     <li><button onclick="callbinder('audiohl','stream_open', {audio_role:ar,endpoint_type:ep_type,endpoint_id:ep_id})">stream_open(audio_role,enpoint_type,endpoint_id)</button></li>
     <li><button onclick="callbinder('audiohl','stream_close', {stream_id:s_id})">stream_close(stream_id)</button></li>
+    <li><button onclick="callbinder('audiohl','get_stream_info', {stream_id:s_id})">get_stream_info(stream_id)</button></li>
+    <li><button onclick="callbinder('audiohl','set_stream_state', {stream_id:s_id,state:st_state})">set_stream_state(stream_id,stream_state)</button></li>
+    <li><button onclick="callbinder('audiohl','set_stream_mute', {stream_id:s_id,mute:st_state})">set_stream_mute(stream_id,mute)</button></li>
     <li><button onclick="callbinder('audiohl','set_volume', {endpoint_type:ep_type,endpoint_id:ep_id,volume:val})">set_volume(endpoint_type,endpoint_id,value)</button></li>   
     <li><button onclick="callbinder('audiohl','get_volume', {endpoint_type:ep_type,endpoint_id:ep_id})">get_volume(endpoint_type,endpoint_id)</button></li>   
-    <li><button onclick="callbinder('audiohl','set_property', {endpoint_type:ep_type,endpoint_id:ep_id,property_name:p_name,value:val})">set_property(endpoint_type,endpoint_id,property,value)</button></li>   
-    <li><button onclick="callbinder('audiohl','get_property', {endpoint_type:ep_type,endpoint_id:ep_id,property_name:'balance'})">get_property(endpoint_type,endpoint_id,'balance')</button></li>  
-    <li><button onclick="callbinder('audiohl','set_state', {endpoint_type:ep_type,endpoint_id:ep_id,state_name:st_name,state_value:st_val})">set_state(endpoint_type,endpoint_id,stateName,stateVal)</button></li>
-    <li><button onclick="callbinder('audiohl','get_state', {endpoint_type:ep_type,endpoint_id:ep_id,state_name:st_name})">get_state(endpoint_type,endpoint_id,stateName)</button></li>
-    <li><button onclick="callbinder('audiohl','post_sound_event', {event_name:'PlaySound',audio_role:'notification',media_name:'HomeButton.wav'})">post_sound_event('PlaySound','HomeButton.wav')</button></li>
-    <li><button onclick="callbinder('audiohl','subscribe', {events:['SinkDeviceChanges','StreamStatusChanges']})">subscribe(['SinkDeviceChanges','StreamStatusChanges'])</button>
-    <li><button onclick="callbinder('audiohl','unsubscribe', {events:['SinkDeviceChanges','StreamStatusChanges']})">unsubscribe(['SinkDeviceChanges','StreamStatusChanges'])</button>
+    <li><button onclick="callbinder('audiohl','get_list_properties', {endpoint_type:ep_type,endpoint_id:ep_id})">get_list_properties(endpoint_type,endpoint_id)</button></li>
+    <li><button onclick="callbinder('audiohl','set_property', {endpoint_type:ep_type,endpoint_id:ep_id,property_name:p_name,value:val})">set_property(endpoint_type,endpoint_id,property,value)</button></li>    
+    <li><button onclick="callbinder('audiohl','get_property', {endpoint_type:ep_type,endpoint_id:ep_id,property_name:'balance'})">get_property(endpoint_type,endpoint_id,'balance')</button></li>   
+    <li><button onclick="callbinder('audiohl','get_list_events', {audio_role:ar})">get_list_events(audio_role)</button></li>
+    <li><button onclick="callbinder('audiohl','post_event', {event_name:'play_sound',audio_role:ar,media_name:'HomeButton.wav'})">post_event(play_sound,audio_role,'HomeButton.wav')</button></li>
+    <li><button onclick="callbinder('audiohl','subscribe', {events:['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_event']})">subscribe(['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_event'])</button>
+    <li><button onclick="callbinder('audiohl','unsubscribe', {events:['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_event']})">unsubscribe(['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_event'])</button>
     </li>
 
     <br>
