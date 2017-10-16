@@ -1,0 +1,35 @@
+<html>
+<head>
+    <link rel="stylesheet" href="AudioBinding.css">
+    <title>Audio High Level Test</title>
+       
+    <script type="text/javascript" src="AFB-websock.js"></script>
+    <script type="text/javascript" src="AudioBinding.js"></script>
+</head>
+    
+<body onload="init('audiod')">
+    
+    <button id="connected" onclick="init('audiod');">Binder WS Fail</button>   <br><br>
+    <br>
+    <ol>
+    <li><button onclick="callbinder('audiod','play', {device_name:'plug:Entertainment_Main', filepath:'style.wav', loop:0})">play('hw:0', 'style.wav')</button></li>
+    <li><button onclick="callbinder('audiod','play', {device_name:'hw:0', filepath:'application.wav', loop:1})">playloop('hw:0', 'application.wav')</button></li>
+    <li><button onclick="callbinder('audiod','play', {device_name:'hw:0', filepath:'application.wav', loop:0})">play('hw:0', 'application.wav')</button></li>
+    <li><button onclick="callbinder('audiod','stop', {audio_role:4})">stop()</button></li>
+    <li><button onclick="callbinder('audiod','pause', {audio_role:4})">pause()</button></li>
+    <li><button onclick="callbinder('audiod','subscribe', {audio_role:4})">subscribe()</button></li>
+    <li><button onclick="callbinder('audiod','unsubscribe', {audio_role:4})">unsubscribe()</button></li>
+    <li><button onclick="callbinder('audiod','post_event', {event_name:'speed', event_parameter:{speed:10}})">post_event('event_name:speed, {speed:10}')</button></li>
+  
+    </li>
+
+    <br>
+    </ol>
+    
+    <div id="main" style="visibility:hidden">
+    <ol>
+    <li>Question <pre id="question"></pre> 
+    <li>Response <pre id="output"></pre>
+    <li>Events:  <pre id="outevt"></pre>
+    </ol>
+    </div>    

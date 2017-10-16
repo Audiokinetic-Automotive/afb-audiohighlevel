@@ -27,6 +27,7 @@
 
 extern AHLCtxT g_AHLCtx;
 
+// TODO: Hash from endpoint ID information instead
 static endpointID_t CreateNewSourceID()
 {
     endpointID_t newID = g_AHLCtx.nextSourceEndpointID;
@@ -34,6 +35,7 @@ static endpointID_t CreateNewSourceID()
     return newID;
 }
 
+// TODO: Hash from endpoint ID information instead
 static endpointID_t CreateNewSinkID()
 {
     endpointID_t newID = g_AHLCtx.nextSinkEndpointID;
@@ -42,6 +44,7 @@ static endpointID_t CreateNewSinkID()
 }
 
 // Watchout: This function uses strtok and is destructive on the input string (use a copy)
+// TODO: Perhaps it would be clearer to separate domain and device URI in both API inputs and outputs
 static int SeparateDomainFromDeviceURI( char * in_pDeviceURI, char ** out_pDomain, char ** out_pDevice)
 {
     *out_pDomain = strtok(in_pDeviceURI, ".");
@@ -85,8 +88,13 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
     snd_pcm_type_t pcmType = 0;
     snd_pcm_info_t * pPcmInfo = NULL;
     int iAlsaRet = 0;
-    const char * pDeviceName = NULL;
+    const char * pCardName = NULL;
     int retVal = 0;
+    snd_ctl_t * ctlHandle = NULL;
+	snd_ctl_card_info_t * ctlInfo = NULL;
+
+	snd_pcm_info_alloca(&pPcmInfo);
+    snd_ctl_card_info_alloca(&ctlInfo);
 
     // retrieve PCM type
     pcmType = snd_pcm_type(in_pPcmHandle);
@@ -100,45 +108,27 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
         case SND_PCM_TYPE_SOFTVOL:
             out_pEndpointInfo->deviceURIType = DEVICEURITYPE_ALSA_SOFTVOL;
             break;
+        case SND_PCM_TYPE_PLUG:
+            out_pEndpointInfo->deviceURIType = DEVICEURITYPE_ALSA_PLUG;
+            break;
         default:
             out_pEndpointInfo->deviceURIType = DEVICEURITYPE_ALSA_OTHER;
             break;
-    }
-
-    iAlsaRet = snd_pcm_info_malloc(&pPcmInfo);
-    if (iAlsaRet < 0)
-    {
-        AFB_WARNING("Error allocating PCM info structure");
-        retVal = 1;
-        goto End;
     }
 
     iAlsaRet = snd_pcm_info(in_pPcmHandle,pPcmInfo);
     if (iAlsaRet < 0)
     {
         AFB_WARNING("Error retrieving PCM device info");
-        retVal = 1;
-        goto End;
+        return 1;
     }
-
-    // Populate target device name (for application display)
-    pDeviceName = snd_pcm_info_get_name(pPcmInfo);
-    if (pDeviceName == NULL)
-    {
-        AFB_WARNING("No Alsa device name available");
-        retVal = 1;
-        goto End;
-        // Could potentially assign a "default" name and carry on with this device
-    }
-    g_string_assign(out_pEndpointInfo->gsDeviceName,pDeviceName); // Overwritten by HAL name if available
 
     // get card number
     out_pEndpointInfo->alsaInfo.cardNum = snd_pcm_info_get_card(pPcmInfo);
     if ( out_pEndpointInfo->alsaInfo.cardNum < 0 )
     {
         AFB_WARNING("No Alsa card number available");
-        retVal = 1;
-        goto End; 
+        return 1;
     }
     
     // get device number
@@ -146,8 +136,7 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
     if ( out_pEndpointInfo->alsaInfo.deviceNum < 0 )
     {
         AFB_WARNING("No Alsa device number available");
-        retVal = 1;
-        goto End;
+        return 1;
     }
 
     // get sub-device number
@@ -155,15 +144,37 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
     if ( out_pEndpointInfo->alsaInfo.subDeviceNum < 0 )
     {
         AFB_WARNING("No Alsa subdevice number available");
-        retVal = 1;
-        goto End; 
+        return 1;
     }
 
-End:
-    if(pPcmInfo) {
-        snd_pcm_info_free(pPcmInfo);
-        pPcmInfo = NULL;
+    char cardName[32];
+	sprintf(cardName, "hw:%d", out_pEndpointInfo->alsaInfo.cardNum);
+	iAlsaRet = snd_ctl_open(&ctlHandle, cardName, 0);
+    if ( iAlsaRet < 0 )
+    {
+        AFB_WARNING("Could not open ALSA card control");
+        return 1;
     }
+
+	iAlsaRet = snd_ctl_card_info(ctlHandle, ctlInfo);
+    if ( iAlsaRet < 0 )
+    {
+        AFB_WARNING("Could not retrieve ALSA card info");
+        snd_ctl_close(ctlHandle);
+        return 1;
+    }
+
+    // Populate unique target card name 
+    pCardName = snd_ctl_card_info_get_id(ctlInfo);
+    if (pCardName == NULL)
+    {
+        AFB_WARNING("No Alsa card name available");
+        snd_ctl_close(ctlHandle);
+        return 1;
+    }
+    g_string_assign(out_pEndpointInfo->gsDeviceName,pCardName); 
+
+    snd_ctl_close(ctlHandle);
 
     return retVal;
 }
@@ -201,7 +212,7 @@ static int RetrieveAssociatedHALAPIName(EndpointInfoT * io_pEndpointInfo)
         int iCardNum = atoi(pDevIDStr+3);
         if (iCardNum == io_pEndpointInfo->alsaInfo.cardNum) {
             g_string_assign(io_pEndpointInfo->gsHALAPIName,pAPIName);
-            g_string_assign(io_pEndpointInfo->gsDeviceName,pShortName);
+            g_string_assign(io_pEndpointInfo->gsDisplayName,pShortName);
             found = 1;
             break;
         }
@@ -214,6 +225,7 @@ static void InitEndpointInfo( EndpointInfoT * out_pEndpointInfo )
     out_pEndpointInfo->endpointID = AHL_UNDEFINED;
     out_pEndpointInfo->type = ENDPOINTTYPE_MAXVALUE;
     out_pEndpointInfo->gsDeviceName = g_string_new("Unassigned");
+    out_pEndpointInfo->gsDisplayName = g_string_new("Unassigned");
     out_pEndpointInfo->gsDeviceURI = g_string_new("Unassigned");
     out_pEndpointInfo->deviceURIType = DEVICEURITYPE_MAXVALUE;
     out_pEndpointInfo->gsAudioRole = g_string_new("Unassigned");
@@ -230,6 +242,7 @@ static void InitEndpointInfo( EndpointInfoT * out_pEndpointInfo )
 static void TermEndpointInfo( EndpointInfoT * out_pEndpointInfo )
 {
     g_string_free(out_pEndpointInfo->gsDeviceName,TRUE);
+    g_string_free(out_pEndpointInfo->gsDisplayName,TRUE);
     g_string_free(out_pEndpointInfo->gsDeviceURI,TRUE);
     g_string_free(out_pEndpointInfo->gsAudioRole,TRUE);
     g_string_free(out_pEndpointInfo->gsHALAPIName,TRUE);
@@ -306,7 +319,7 @@ int EnumerateSources(json_object * in_jSourceArray, int in_iRoleIndex, char * in
         
         // non ALSA URI are simply passed to application (no validation) at this time 
         // In Non ALSA case devices in config are assumed to be available, if not application can fallback on explicit device selection 
-        g_string_assign(endpointInfo.gsDeviceName,pDeviceURIPCM); // Overwritten by HAL name if available
+        g_string_assign(endpointInfo.gsDeviceName,pDeviceURIPCM); 
 
         if (IsAlsaDomain(pDeviceURIDomain))
         {

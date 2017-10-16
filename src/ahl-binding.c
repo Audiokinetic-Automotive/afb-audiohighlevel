@@ -24,11 +24,7 @@
 #include "wrap-json.h"
 
 // Global high-level binding context
-AHLCtxT g_AHLCtx;
-
-//afb_req_context_set ??
-// usr = afb_req_context_get(req);
-// afb_req_context_clear(req);
+AHLCtxT g_AHLCtx; 
 
 static void AudioFormatStructToJSON(json_object **audioFormatJ, AudioFormatT * pAudioFormat)
 {
@@ -42,10 +38,11 @@ static void AudioFormatStructToJSON(json_object **audioFormatJ, AudioFormatT * p
 static void EndpointInfoStructToJSON(json_object **endpointInfoJ, EndpointInfoT * pEndpointInfo)
 {
     json_object *formatInfoJ = NULL;
-    wrap_json_pack(endpointInfoJ, "{s:i,s:i,s:s,s:i}",
+    wrap_json_pack(endpointInfoJ, "{s:i,s:i,s:s,s:s,s:i}",
                     "endpoint_id", pEndpointInfo->endpointID, 
                     "endpoint_type", pEndpointInfo->type, 
                     "device_name", pEndpointInfo->gsDeviceName->str, 
+                    "display_name", pEndpointInfo->gsDisplayName->str, 
                     "device_uri_type", pEndpointInfo->deviceURIType);
     AudioFormatStructToJSON(&formatInfoJ,&pEndpointInfo->format);
     json_object_object_add(*endpointInfoJ,"format",formatInfoJ);
@@ -63,6 +60,27 @@ static void StreamInfoStructToJSON(json_object **streamInfoJ, StreamInfoT * pStr
     json_object_object_add(*streamInfoJ,"endpoint_info",endpointInfoJ);
 }
 
+static streamID_t CreateNewStreamID()
+{
+    streamID_t newID = g_AHLCtx.nextStreamID;
+    g_AHLCtx.nextStreamID++;
+    return newID;
+}
+
+static int FindRoleIndex( const char * in_pAudioRole)
+{
+    int index = -1; // Not found
+    for (int i = 0; i < g_AHLCtx.policyCtx.iNumberRoles; i++)
+    {
+        GString gs = g_array_index( g_AHLCtx.policyCtx.pAudioRoles, GString, i );
+        if ( strcasecmp(gs.str,in_pAudioRole) == 0 )
+        {
+            index = i;
+            break;
+        }
+    }
+    return index;
+}
 
 static EndpointInfoT * GetEndpointInfo(endpointID_t in_endpointID, EndpointTypeT in_endpointType)
 {
@@ -99,6 +117,46 @@ static StreamInfoT * GetActiveStream(streamID_t in_streamID)
         }
     }
     return pStreamInfo;
+}
+
+static AHLClientCtxT * AllocateClientContext()
+{
+    AHLClientCtxT * pClientCtx = malloc(sizeof(AHLClientCtxT));
+    pClientCtx->pEndpointAccessList = g_array_new(FALSE, TRUE, sizeof(endpointID_t));
+    pClientCtx->pStreamAccessList = g_array_new(FALSE, TRUE, sizeof(streamID_t));
+    return pClientCtx;
+}
+
+static void TerminateClientContext(void * ptr)
+{
+    AHLClientCtxT * pClientCtx = (AHLClientCtxT *) ptr;
+    g_array_free( pClientCtx->pEndpointAccessList, TRUE);
+    g_array_free( pClientCtx->pStreamAccessList, TRUE);
+    free(ptr);
+}
+
+static int CheckStreamAccessControl(AHLClientCtxT * pClientCtx, streamID_t streamID)
+{
+    int iAccessControl = AHL_ACCESS_CONTROL_DENIED;
+    for (int i = 0; i < pClientCtx->pStreamAccessList->len ; i++) {
+        streamID_t iID = g_array_index(pClientCtx->pStreamAccessList,streamID_t,i);
+        if (iID == streamID) {
+            iAccessControl = AHL_ACCESS_CONTROL_GRANTED;
+        }    
+    }
+    return iAccessControl;
+}
+
+static int CheckEndpointAccessControl(AHLClientCtxT * pClientCtx, endpointID_t endpointID)
+{
+    int iAccessControl = AHL_ACCESS_CONTROL_DENIED;
+    for (int i = 0; i < pClientCtx->pEndpointAccessList->len ; i++) {
+        endpointID_t iID = g_array_index(pClientCtx->pEndpointAccessList,endpointID_t,i);
+        if (iID == endpointID) {
+            iAccessControl = AHL_ACCESS_CONTROL_GRANTED;
+        }    
+    }
+    return iAccessControl;
 }
 
 static int CreateEvents()
@@ -155,56 +213,29 @@ static void AhlBindingTerm()
 
     // TODO: Need to free g_strings in HAL list
     g_array_free(g_AHLCtx.pHALList,TRUE);
+    g_AHLCtx.pHALList = NULL;
     g_hash_table_remove_all(g_AHLCtx.policyCtx.pRolePriority);
     g_hash_table_destroy(g_AHLCtx.policyCtx.pRolePriority);
+    g_AHLCtx.policyCtx.pRolePriority = NULL;
     // TODO: Need to free g_strings in audio roles list
     g_array_free(g_AHLCtx.policyCtx.pAudioRoles,TRUE); 
+    g_AHLCtx.policyCtx.pAudioRoles = NULL;
     g_array_free(g_AHLCtx.policyCtx.pInterruptBehavior,TRUE);
+    g_AHLCtx.policyCtx.pInterruptBehavior = NULL;
     g_array_free(g_AHLCtx.policyCtx.pActiveStreams,TRUE);
+    g_AHLCtx.policyCtx.pActiveStreams = NULL;
 
     AFB_INFO("Audio high-level Binding succesTermination");
 }
-
-static streamID_t CreateNewStreamID()
-{
-    streamID_t newID = g_AHLCtx.nextStreamID;
-    g_AHLCtx.nextStreamID++;
-    return newID;
-}
-
-static int FindRoleIndex( const char * in_pAudioRole)
-{
-    int index = -1; // Not found
-    for (int i = 0; i < g_AHLCtx.policyCtx.iNumberRoles; i++)
-    {
-        GString gs = g_array_index( g_AHLCtx.policyCtx.pAudioRoles, GString, i );
-        if ( strcasecmp(gs.str,in_pAudioRole) == 0 )
-            index = i;
-    }
-    return index;
-}
-
 
 // Binding initialization
 PUBLIC int AhlBindingInit()
 {
     int errcount = 0;
-    int err = 0;
-
-    // This API uses services from low level audio
-    err = afb_daemon_require_api_v2("alsacore",1) ;
-    if( err != 0 )
-    {
-        AFB_ERROR("Audio high level API requires alsacore API to be available");
-        return 1;
-    }
-
-    // Parse high-level binding JSON configuration file (will build device lists)
-    errcount += ParseHLBConfig();
 
     atexit(AhlBindingTerm);
 
-    // This API uses services from low level audio
+    // This API uses services from low level audio. TODO: This dependency can be removed.
     errcount = afb_daemon_require_api_v2("alsacore",1) ;
     if( errcount != 0 )
     {
@@ -221,11 +252,10 @@ PUBLIC int AhlBindingInit()
     errcount += Policy_Init();
 
     // Initialize list of active streams
+    g_AHLCtx.iNumActiveClients = 0;
     g_AHLCtx.policyCtx.pActiveStreams = g_array_new(FALSE,TRUE,sizeof(StreamInfoT));
 
-    // TODO: Register for device changes ALSA low level audio service or HAL
-
-    // TODO: Use AGL persistence framework to retrieve and set inital state/volumes/properties
+    // TODO: Use AGL persistence framework to retrieve and set initial volumes/properties
 
     AFB_DEBUG("Audio high-level Binding success errcount=%d", errcount);
     return errcount;
@@ -233,15 +263,11 @@ PUBLIC int AhlBindingInit()
 
 PUBLIC void AhlOnEvent(const char *evtname, json_object *eventJ)
 {
-    // TODO: Implement handling events from HAL...
     AFB_DEBUG("AHL received event %s", evtname);
+    
+    //forward to policy to handle events
+    Policy_OnEvent(evtname, eventJ);
 }
-
-// TODO: OnEventFunction when it actually subscribe to other binding events
-// TODO: Dynamic device handling 
-// if HAL device availability change -> update source / sink list
-// Call policy to attempt to assign role based on information (e.g. device name)
-// Policy should also determine priority (insert device in right spot in the list)
 
 PUBLIC void audiohlapi_get_sources(struct afb_req req)
 {
@@ -249,7 +275,7 @@ PUBLIC void audiohlapi_get_sources(struct afb_req req)
     json_object *sourceJ = NULL;
     json_object *queryJ = NULL;
     char * audioRole = NULL;
-   
+
     queryJ = afb_req_json(req);
     int err = wrap_json_unpack(queryJ, "{s:s}", "audio_role", &audioRole);
     if (err) {
@@ -338,6 +364,15 @@ PUBLIC void audiohlapi_stream_open(struct afb_req req)
     }
     AFB_DEBUG("Parsed input arguments = audio_role:%s endpoint_type:%d endpoint_id:%d", audioRole,endpointType,endpointID);
 
+    // Check if there is already an existing context for this client
+    AHLClientCtxT * pClientCtx = afb_req_context_get(req); // Retrieve client-specific data structure
+    if (pClientCtx == NULL)
+    {
+        g_AHLCtx.iNumActiveClients++;
+        pClientCtx = AllocateClientContext();
+        afb_req_context_set(req, pClientCtx, TerminateClientContext);
+    }
+
     int iRoleIndex = FindRoleIndex(audioRole);
     if (iRoleIndex < 0) {
         afb_req_fail_f(req, "Invalid audio role", "Audio role was not found in configuration -> %s",audioRole);
@@ -379,23 +414,23 @@ PUBLIC void audiohlapi_stream_open(struct afb_req req)
         }
     }
 
+    // Create stream
+    streamInfo.streamID = CreateNewStreamID(); // create new ID
+    streamInfo.streamState = STREAM_STATE_IDLE;
+    streamInfo.streamMute = STREAM_UNMUTED;
+    streamInfo.pEndpointInfo = pEndpointInfo;
+
     // Call policy to verify whether creating a new audio stream is allowed in current context and possibly take other actions
-    policyAllowed = Policy_OpenStream(audioRole, endpointType, pEndpointInfo->endpointID);
+    policyAllowed = Policy_OpenStream(&streamInfo);    
     if (policyAllowed == AHL_POLICY_REJECT)
     {
         afb_req_fail(req, "Audio policy violation", "Open stream not allowed in current context");
         return;
-    }
-
-    // Create stream
-    streamInfo.streamID = CreateNewStreamID(); // create new ID
-    streamInfo.streamState = STREAM_STATUS_READY;
-    streamInfo.streamMute = STREAM_UNMUTED;
-    streamInfo.pEndpointInfo = pEndpointInfo;
+    }    
 
     char streamEventName[128];
     snprintf(streamEventName,128,"ahl_streamstate_%d",streamInfo.streamID);
-
+    
     streamInfo.streamStateEvent = afb_daemon_make_event(streamEventName);
     err = !afb_event_is_valid(streamInfo.streamStateEvent);
     if (err) {
@@ -408,6 +443,10 @@ PUBLIC void audiohlapi_stream_open(struct afb_req req)
         afb_req_fail(req, "Stream event subscription failure", "Could not subscribe to stream specific state change event");
         return;
     }
+
+    // Add to client context stream ID and endpoint ID access rights
+    g_array_append_val(pClientCtx->pStreamAccessList, streamInfo.streamID);
+    g_array_append_val(pClientCtx->pEndpointAccessList, streamInfo.pEndpointInfo->endpointID);
 
     // Push stream on active stream list
     g_array_append_val( g_AHLCtx.policyCtx.pActiveStreams, streamInfo );
@@ -431,10 +470,30 @@ PUBLIC void audiohlapi_stream_close(struct afb_req req)
     }
     AFB_DEBUG("Parsed input arguments = stream_id:%d", streamID);
 
-    // TODO: Validate that the application ID from which the stream close is coming is the one that opened it, otherwise fail and do nothing
+    // Check if there is already an existing context for this client
+    AHLClientCtxT * pClientCtx = afb_req_context_get(req); // Retrieve client-specific data structure
+    if (pClientCtx == NULL)
+    {
+        afb_req_fail(req, "No context associated with the request", "No context associated with the request");
+        return;
+    }
+
+    // Verify that this client can control the stream
+    int iStreamAccessControl = CheckStreamAccessControl( pClientCtx, streamID );
+    if (iStreamAccessControl == AHL_ACCESS_CONTROL_DENIED)
+    {
+        afb_req_fail(req, "Access control denied", "Close stream not allowed in current client context");
+        return;
+    }
 
     // Call policy to verify whether creating a new audio stream is allowed in current context and possibly take other actions
-    policyAllowed = Policy_CloseStream(streamID);
+    StreamInfoT * pStreamInfo = GetActiveStream(streamID);
+    if (pStreamInfo == NULL) {
+        afb_req_fail_f(req, "Stream not found", "Specified stream not currently active stream_id -> %d",streamID);
+        return;
+    }
+
+    policyAllowed = Policy_CloseStream(pStreamInfo);
     if (policyAllowed == AHL_POLICY_REJECT)
     {
         afb_req_fail(req, "Audio policy violation", "Close stream not allowed in current context");
@@ -454,7 +513,7 @@ PUBLIC void audiohlapi_stream_close(struct afb_req req)
             if (iValid) {
                 err = afb_req_unsubscribe(req,streamInfo.streamStateEvent);
                 if (err) {
-                    afb_req_fail(req, "Stream event subscription failure", "Could not subscribe to stream specific state change event");
+                    afb_req_fail(req, "Stream event subscription failure", "Could not unsubscribe to stream specific state change event");
                     return;
                 }
             }
@@ -472,6 +531,22 @@ PUBLIC void audiohlapi_stream_close(struct afb_req req)
     if (iStreamFound == 0) {
         afb_req_fail_f(req, "Stream not found", "Specified stream not currently active stream_id -> %d",streamID);
         return;
+    }
+
+    // Find index for cases where there are multiple streams per client
+    // Remove from client context stream ID and endpoint ID access rights
+    for (int i = 0; i < pClientCtx->pStreamAccessList->len ; i++) {
+        streamID_t iID = g_array_index(pClientCtx->pStreamAccessList,streamID_t,i);
+        if (iID == streamID) {
+            g_array_remove_index(pClientCtx->pStreamAccessList, i);
+            g_array_remove_index(pClientCtx->pEndpointAccessList, i);
+        }    
+    }
+
+    if (pClientCtx->pStreamAccessList->len == 0 && pClientCtx->pEndpointAccessList == 0) {
+        // If no more streams/endpoints owner, clear session
+        afb_req_context_clear(req);
+        g_AHLCtx.iNumActiveClients--;
     }
 
     afb_req_success(req, NULL, "Stream close completed");
@@ -498,22 +573,29 @@ PUBLIC void audiohlapi_stream_close(struct afb_req req)
         return;
     }
 
-    policyAllowed = Policy_SetStreamState(streamID,streamState);
-    if (policyAllowed == AHL_POLICY_REJECT)
+    // Check if there is already an existing context for this client
+    AHLClientCtxT * pClientCtx = afb_req_context_get(req); // Retrieve client-specific data structure
+    if (pClientCtx == NULL)
     {
-        afb_req_fail(req, "Audio policy violation", "Change stream state not allowed in current context");
+        afb_req_fail(req, "No context associated with the request", "No context associated with the request");
         return;
     }
 
-    pStreamInfo->streamState = streamState;
-    // Package event data
-    json_object * eventDataJ = NULL;
-    err = wrap_json_pack(&eventDataJ,"{s:i,s:i}","mute",pStreamInfo->streamMute,"state",streamState);
-    if (err) {
-        afb_req_fail_f(req, "Invalid event data for stream state event", "Invalid event data for stream state event: %s",json_object_to_json_string(eventDataJ));
+    // Verify that this client can control the stream
+    int iStreamAccessControl = CheckStreamAccessControl( pClientCtx, streamID );
+    if (iStreamAccessControl == AHL_ACCESS_CONTROL_DENIED)
+    {
+        afb_req_fail(req, "Access control denied", "Set stream state not allowed in current client context");
         return;
     }
-    afb_event_push(pStreamInfo->streamStateEvent,eventDataJ);
+    int AudioRoleIndex = FindRoleIndex(pStreamInfo->pEndpointInfo->gsAudioRole->str);
+
+    policyAllowed = Policy_SetStreamState(pStreamInfo, AudioRoleIndex, streamState);    
+    if (policyAllowed == AHL_POLICY_REJECT)
+    {
+        afb_req_fail(req, "Audio policy violation", "Change stream state not allowed in current context");
+        return; 
+    }
 
     afb_req_success(req, NULL, "Set stream state");
  }
@@ -539,28 +621,33 @@ PUBLIC void audiohlapi_stream_close(struct afb_req req)
         return;
     }
 
-    policyAllowed = Policy_SetStreamMute(streamID,muteState);
+    // Check if there is already an existing context for this client
+    AHLClientCtxT * pClientCtx = afb_req_context_get(req); // Retrieve client-specific data structure
+    if (pClientCtx == NULL)
+    {
+        afb_req_fail(req, "No context associated with the request", "No context associated with the request");
+        return;
+    }
+
+    // Verify that this client can control the stream
+    int iStreamAccessControl = CheckStreamAccessControl( pClientCtx, streamID );
+    if (iStreamAccessControl == AHL_ACCESS_CONTROL_DENIED)
+    {
+        afb_req_fail(req, "Access control denied", "Set stream mute state not allowed in current client context");
+        return;
+    }
+
+    policyAllowed = Policy_SetStreamMute(pStreamInfo,muteState);    
     if (policyAllowed == AHL_POLICY_REJECT)
     {
         afb_req_fail(req, "Audio policy violation", "Mute stream not allowed in current context");
         return;
     }
 
-    pStreamInfo->streamMute = muteState;
-
-    // Package event data
-    json_object * eventDataJ = NULL;
-    err = wrap_json_pack(&eventDataJ,"{s:i,s:i}","mute",muteState,"state",pStreamInfo->streamState);
-    if (err) {
-        afb_req_fail_f(req, "Invalid event data for stream state event", "Invalid event data for stream state event: %s",json_object_to_json_string(eventDataJ));
-        return;
-    }
-    afb_event_push(pStreamInfo->streamStateEvent,eventDataJ);
-
     afb_req_success(req, NULL, "Set stream mute completed");
  }
 
-PUBLIC void audiohlapi_get_stream_info(struct afb_req req)
+ PUBLIC void audiohlapi_get_stream_info(struct afb_req req)
  {
     json_object *queryJ = NULL;
     streamID_t streamID = AHL_UNDEFINED;
@@ -601,18 +688,6 @@ PUBLIC void audiohlapi_set_volume(struct afb_req req)
     }
     AFB_DEBUG("Parsed input arguments = endpoint_type:%d endpoint_id:%d volume:%s", endpointType,endpointID,volumeStr);
 
-    // TODO: Parse volume string to support increment/absolute/percent notation (or delegate to action / policy layer to interpret)
-    int vol = atoi(volumeStr);
-
-    // TODO: Policy needs way to set cached endpoint volume value (eg.)
-    policyAllowed = Policy_SetVolume(endpointType, endpointID, volumeStr); // TODO: Potentially retrieve modified value by policy (e.g. volume limit)
-    if (!policyAllowed)
-    {
-        afb_req_fail(req, "Audio policy violation", "Set volume not allowed in current context");
-        return;
-    }
-
-    // TODO: Cache HAL control name during device enumeration for efficiency
     EndpointInfoT * pEndpointInfo = GetEndpointInfo(endpointID,endpointType);
     if (pEndpointInfo == NULL)
     {
@@ -620,37 +695,28 @@ PUBLIC void audiohlapi_set_volume(struct afb_req req)
         return;
     }
 
-    // Using audio role available from endpoint to target the right HAL control (build string based on convention)
-    GString * gsHALControlName  = g_string_new(pEndpointInfo->gsAudioRole->str);
-    g_string_append(gsHALControlName,"_Ramp"); // Or _Vol for direct control (no ramping)
-
-    // Set endpoint volume using HAL services (leveraging ramps etc.)
-    json_object *j_response, *j_query = NULL;
- 
-    // Package query
-    err = wrap_json_pack(&j_query,"{s:s,s:i}","label",gsHALControlName->str, "val",vol);
-    if (err) {
-        afb_req_fail_f(req, "Invalid query for HAL ctlset", "Invalid query for HAL ctlset: %s",json_object_to_json_string(j_query));
+    // Check if there is already an existing context for this client
+    AHLClientCtxT * pClientCtx = afb_req_context_get(req); // Retrieve client-specific data structure
+    if (pClientCtx == NULL)
+    {
+        afb_req_fail(req, "No context associated with the request", "No context associated with the request");
         return;
     }
 
-    // TODO: Move this to ref implmentation policy
-    // Set the volume using the HAL
-    err = afb_service_call_sync(pEndpointInfo->gsHALAPIName->str, "ctlset", j_query, &j_response);
-    if (err) {
-        afb_req_fail_f(req, "HAL ctlset failure", "Could not ctlset on HAL: %s",pEndpointInfo->gsHALAPIName->str);
+    // Verify that this client can control the stream
+    int iEndpointAccessControl = CheckEndpointAccessControl( pClientCtx, endpointID );
+    if (iEndpointAccessControl == AHL_ACCESS_CONTROL_DENIED)
+    {
+        afb_req_fail(req, "Access control denied", "Set volume not allowed in current client context");
         return;
     }
-    AFB_DEBUG("HAL ctlset response=%s", json_object_to_json_string(j_response));
 
-    // Package event data
-    json_object * eventDataJ = NULL;
-    err = wrap_json_pack(&eventDataJ,"{s:i,s:i,s:i}","endpoint_id",endpointID,"endpoint_type",endpointType,"value",vol);
-    if (err) {
-        afb_req_fail_f(req, "Invalid event data for volume event", "Invalid event data for volume event: %s",json_object_to_json_string(eventDataJ));
+    policyAllowed = Policy_SetVolume(pEndpointInfo, volumeStr);
+    if (!policyAllowed)
+    {
+        afb_req_fail(req, "Audio policy violation", "Set volume not allowed in current context");
         return;
     }
-    afb_event_push(g_AHLCtx.policyCtx.volumeEvent,eventDataJ);
  
     afb_req_success(req, NULL, "Set volume completed");
 }
@@ -670,7 +736,6 @@ PUBLIC void audiohlapi_get_volume(struct afb_req req)
     }
     AFB_DEBUG("Parsed input arguments = endpoint_type:%d endpoint_id:%d", endpointType,endpointID);
 
-    // TODO: Cache HAL control name during device enumeration for efficiency
     EndpointInfoT * pEndpointInfo = GetEndpointInfo(endpointID,endpointType);
     if (pEndpointInfo == NULL)
     {
@@ -678,43 +743,7 @@ PUBLIC void audiohlapi_get_volume(struct afb_req req)
         return;
     }
 
-    // Using audio role available from endpoint to target the right HAL control (build string based on convention)
-    GString * gsHALControlName = g_string_new(pEndpointInfo->gsAudioRole->str);
-    g_string_append(gsHALControlName,"_Vol"); // Use current value, not ramp target
-
-    // Set endpoint volume using HAL services (leveraging ramps etc.)
-    json_object *j_response, *j_query = NULL;
- 
-    // TODO: Returned cached endpoint volume value (controlled by policy)
-    // Package query
-    err = wrap_json_pack(&j_query,"{s:s}","label",gsHALControlName->str);
-    if (err) {
-        afb_req_fail_f(req, "Invalid query for HAL ctlget", "Invalid query for HAL ctlget: %s",json_object_to_json_string(j_query));
-        return;
-    }
-
-    // TODO: Return cached value or move to policy
-    // Set the volume using the HAL
-    err = afb_service_call_sync(pEndpointInfo->gsHALAPIName->str, "ctlget", j_query, &j_response);
-    if (err) {
-        afb_req_fail_f(req, "HAL ctlget failure", "Could not ctlget on HAL: %s",pEndpointInfo->gsHALAPIName->str);
-        return;
-    }
-    AFB_INFO("HAL ctlget response=%s", json_object_to_json_string(j_response));
-
-    // Parse response
-    json_object * jRespObj = NULL;
-    json_object_object_get_ex(j_response, "response", &jRespObj);
-    json_object * jVal = NULL;
-    json_object_object_get_ex(jRespObj, "val", &jVal);
-    int val1 = 0, val2 = 0; // Why 2 values?      
-    err = wrap_json_unpack(jVal, "[ii]", &val1, &val2);
-    if (err) {
-        afb_req_fail_f(req,"Volume retrieve failed", "Could not retrieve volume value -> %s", json_object_get_string(jVal));
-        return;
-    }
-
-    volumeJ = json_object_new_double((double)val1);
+    volumeJ = json_object_new_double((double)pEndpointInfo->iVolume);
 
     afb_req_success(req, volumeJ, "Retrieved volume value");
 }
@@ -763,31 +792,48 @@ PUBLIC void audiohlapi_set_property(struct afb_req req)
     endpointID_t endpointID = AHL_UNDEFINED;
     EndpointTypeT endpointType = ENDPOINTTYPE_MAXVALUE;
     char * propertyName = NULL;
-    char * propValueStr = NULL;
+    json_object * propValueJ = NULL;
     int policyAllowed = AHL_POLICY_REJECT;
-
-    // TODO: object type detection (string = state, numeric = property)
     
     queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:i,s:i,s:s,s:s}", "endpoint_type", &endpointType,"endpoint_id",&endpointID,"property_name",&propertyName,"value",&propValueStr);
+    int err = wrap_json_unpack(queryJ, "{s:i,s:i,s:s,s:o}", "endpoint_type", &endpointType,"endpoint_id",&endpointID,"property_name",&propertyName,"value",&propValueJ);
     if (err) {
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
         return;
     }
-    AFB_DEBUG("Parsed input arguments = endpoint_type:%d endpoint_id:%d property_name:%s value:%s", endpointType,endpointID,propertyName,propValueStr);
-  
-    // TODO: Parse property value string to support increment/absolute/percent notation
+    AFB_DEBUG("Parsed input arguments = endpoint_type:%d endpoint_id:%d property_name:%s", endpointType,endpointID,propertyName);
+
+
+    EndpointInfoT * pEndpointInfo = GetEndpointInfo(endpointID,endpointType);
+    if (pEndpointInfo == NULL)
+    {
+        afb_req_fail_f(req, "Endpoint not found", "Endpoint information not found for id:%d type%d",endpointID,endpointType);
+        return;
+    }
+
+    // Check if there is already an existing context for this client
+    AHLClientCtxT * pClientCtx = afb_req_context_get(req); // Retrieve client-specific data structure
+    if (pClientCtx == NULL)
+    {
+        afb_req_fail(req, "No context associated with the request", "No context associated with the request");
+        return;
+    }
+
+    // Verify that this client can control the stream
+    int iEndpointAccessControl = CheckEndpointAccessControl( pClientCtx, endpointID );
+    if (iEndpointAccessControl == AHL_ACCESS_CONTROL_DENIED)
+    {
+        afb_req_fail(req, "Access control denied", "Set property not allowed in current client context");
+        return;
+    }
 
     // Call policy to allow custom policy actions in current context
-    policyAllowed = Policy_SetProperty(endpointType, endpointID, propertyName, propValueStr); // TODO: Potentially retrieve modified value by policy (e.g. parameter limit) 
+    policyAllowed = Policy_SetProperty(pEndpointInfo, propertyName, propValueJ);     
     if (!policyAllowed)
     {
         afb_req_fail(req, "Audio policy violation", "Set endpoint property not allowed in current context");
         return;
     }
-
-    // TODO: Policy to dispatch on right service target
-    // TODO: Policy tp cache value in property list
 
     afb_event_push(g_AHLCtx.policyCtx.propertyEvent,queryJ);
 
@@ -800,8 +846,6 @@ PUBLIC void audiohlapi_get_property(struct afb_req req)
     endpointID_t endpointID = AHL_UNDEFINED;
     EndpointTypeT endpointType = ENDPOINTTYPE_MAXVALUE;
     char * propertyName = NULL;
-    json_object *propertyValJ;
-    double value = 0.0;
     
     queryJ = afb_req_json(req);
     int err = wrap_json_unpack(queryJ, "{s:i,s:i,s:s}", "endpoint_type", &endpointType,"endpoint_id",&endpointID,"property_name",&propertyName);
@@ -811,11 +855,21 @@ PUBLIC void audiohlapi_get_property(struct afb_req req)
     }
     AFB_DEBUG("Parsed input arguments = endpoint_type:%d endpoint_id:%d property_name:%s", endpointType,endpointID,propertyName);
 
-    // TODO: Retriev189e cached property value
-    // TODO Account for properties with string types
+    EndpointInfoT * pEndpointInfo = GetEndpointInfo(endpointID,endpointType);
+    if (pEndpointInfo == NULL)
+    {
+        afb_req_fail_f(req, "Endpoint not found", "Endpoint information not found for id:%d type%d",endpointID,endpointType);
+        return;
+    }
 
-    value = 93.0; // TODO: Get actual property value 
-    propertyValJ = json_object_new_double(value);
+    // Retrieve cached property value
+    json_object * propertyValJ = (json_object *)g_hash_table_lookup(pEndpointInfo->pPropTable,propertyName);
+    if (propertyValJ == NULL) {
+        afb_req_fail_f(req, "Property not found", "Property information not found: %s",propertyName);
+        return;
+    }
+
+    json_object_get(propertyValJ); // Increase ref count so that framework does not free our JSON object
 
     afb_req_success(req, propertyValJ, "Retrieved property value");
 }

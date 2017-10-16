@@ -29,6 +29,7 @@ int ParseHLBConfig() {
     char * versionStr = NULL;
     json_object * jAudioRoles = NULL;
     json_object * jHALList = NULL;
+    char * policyModule = NULL;
     
     // TODO: This should be retrieve from binding startup arguments
     char configfile_path[256];
@@ -43,11 +44,13 @@ int ParseHLBConfig() {
         return 1;
     }
 
-    int err = wrap_json_unpack(config_JFile, "{s:s,s:o,s:o}", "version", &versionStr,"audio_roles",&jAudioRoles,"hal_list",&jHALList);
+    int err = wrap_json_unpack(config_JFile, "{s:s,s:s,s:o,s:o}", "version", &versionStr,"policy_module", &policyModule,"audio_roles",&jAudioRoles,"hal_list",&jHALList);
     if (err) {
         AFB_ERROR("Invalid configuration file -> %s", configfile_path);
         return 1;
     }
+    AFB_INFO("Version: %s", versionStr);
+    AFB_INFO("Policy module: %s", policyModule);
 
     int iHALListLength = json_object_array_length(jHALList);
     int iNumberOfRoles = json_object_array_length(jAudioRoles);
@@ -61,7 +64,6 @@ int ParseHLBConfig() {
     g_AHLCtx.policyCtx.pSourceEndpoints = g_ptr_array_sized_new(iNumberOfRoles);
     g_AHLCtx.policyCtx.pSinkEndpoints = g_ptr_array_sized_new(iNumberOfRoles);
     g_AHLCtx.policyCtx.pEventList = g_ptr_array_sized_new(iNumberOfRoles);
-    g_AHLCtx.policyCtx.iNumberRoles = iNumberOfRoles;
         
     for (int i = 0; i < iHALListLength; i++)
     {
@@ -88,19 +90,20 @@ int ParseHLBConfig() {
         json_object * jInputDevices = NULL;
         json_object * jEvents = NULL;
         char * pRoleName = NULL;
-        InterruptedBehaviorT interupBehavior = AHL_INTERRUPTEDBEHAVIOR_CONTINUE; //Default
+        char * pInteruptBehavior = NULL;
 
         int iNumOutDevices = 0;
         int iNumInDevices = 0;
         int iNumEvents = 0;
 
-        err = wrap_json_unpack(jAudioRole, "{s:s,s:i,s?o,s?o,s?o,s?i}", 
+        err = wrap_json_unpack(jAudioRole, "{s:s,s:i,s:s,s?o,s?o,s?o}", 
                                     "name", &pRoleName,
                                     "priority",&priority,
+                                    "interupt_behavior",&pInteruptBehavior,
                                     "output",&jOutputDevices,
                                     "input",&jInputDevices,
-                                    "events",&jEvents,
-                                    "interupt_behavior",&interupBehavior);
+                                    "events",&jEvents
+                                    );
         if (err) {
             AFB_ERROR("Invalid audio role configuration : %s", json_object_to_json_string(jAudioRole));
             return 1;
@@ -115,9 +118,24 @@ int ParseHLBConfig() {
 
         GString * gRoleName = g_string_new( pRoleName );
         g_array_append_val( g_AHLCtx.policyCtx.pAudioRoles, *gRoleName );
-        g_hash_table_insert(g_AHLCtx.policyCtx.pRolePriority, pRoleName, &priority);
+        g_hash_table_insert(g_AHLCtx.policyCtx.pRolePriority, pRoleName, GINT_TO_POINTER(priority));
 
-        g_array_append_val(g_AHLCtx.policyCtx.pInterruptBehavior, interupBehavior);
+        // Map interupt behavior string to enum value
+        InterruptedBehaviorT interuptBehavior = AHL_INTERRUPTEDBEHAVIOR_CONTINUE; 
+        if ( strcasecmp(pInteruptBehavior,AHL_INTERRUPTEDBEHAVIOR_CONTINUE_STR) == 0 ) {
+            interuptBehavior = AHL_INTERRUPTEDBEHAVIOR_CONTINUE;
+        }
+        else if ( strcasecmp(pInteruptBehavior,AHL_INTERRUPTEDBEHAVIOR_CANCEL_STR) == 0 ) {
+            interuptBehavior = AHL_INTERRUPTEDBEHAVIOR_CANCEL;
+        }
+        else if ( strcasecmp(pInteruptBehavior,AHL_INTERRUPTEDBEHAVIOR_PAUSE_STR) == 0 ) {
+            interuptBehavior = AHL_INTERRUPTEDBEHAVIOR_PAUSE;
+        }
+        else {
+            AFB_ERROR("Unknown interrupt behavior : %s", pInteruptBehavior);
+            return 1;
+        }
+        g_array_append_val(g_AHLCtx.policyCtx.pInterruptBehavior, interuptBehavior);
 
         // Sources
         GArray * pRoleSourceDeviceArray = g_array_new(FALSE, TRUE, sizeof(EndpointInfoT));

@@ -29,6 +29,7 @@ typedef enum DeviceURIType {
     DEVICEURITYPE_ALSA_DMIX,    // Alsa Dmix device URI (only for playback devices)
     DEVICEURITYPE_ALSA_DSNOOP,  // Alsa DSnoop device URI (only for capture devices)
     DEVICEURITYPE_ALSA_SOFTVOL, // Alsa softvol device URI
+    DEVICEURITYPE_ALSA_PLUG,    // Alsa plug device URI
     DEVICEURITYPE_ALSA_OTHER,   // Alsa domain URI device of unspecified type
     DEVICEURITYPE_PULSE,        // Pulse device URI
     DEVICEURITYPE_GSTREAMER,    // GStreamer device URI
@@ -37,9 +38,10 @@ typedef enum DeviceURIType {
 } DeviceURITypeT;
 
 typedef enum StreamState {
-    STREAM_STATUS_READY = 0,    // Stream is inactive
-    STREAM_STATUS_RUNNING,      // Stream is running
-    STREAM_STATUS_MAXVALUE,     // Enum count, keep at the end
+    STREAM_STATE_IDLE  = 0,    // Stream is inactive
+    STREAM_STATE_RUNNING,      // Stream is active and running    
+    STREAM_STATE_PAUSED,       // Stream is active but paused
+    STREAM_STATE_MAXVALUE      // Enum count, keep at the end
 } StreamStateT;
 
 typedef enum StreamMute {
@@ -48,13 +50,20 @@ typedef enum StreamMute {
     STREAM_MUTE_MAXVALUE,       // Enum count, keep at the end
 } StreamMuteT;
 
-// Define default behavior of audio role when interrupted by higher priority sources
-typedef enum InterruptedBehavior {
-  AHL_INTERRUPTEDBEHAVIOR_CONTINUE = 0, // Continue to play when interrupted (e.g. media may be ducked)
-  AHL_INTERRUPTEDBEHAVIOR_CANCEL,       // Abort playback when interrupted (e.g. non-important HMI feedback that does not make sense later)
-  AHL_INTERRUPTEDBEHAVIOR_PAUSE,        // Pause source when interrupted, to be resumed afterwards (e.g. non-temporal guidance)
-  AHL_INTERRUPTEDBEHAVIOR_MAXVALUE,     // Enum count, keep at the end
-} InterruptedBehaviorT;
+typedef enum StreamEvent {
+    STREAM_EVENT_START  = 0,   // Stream is inactive
+    STREAM_EVENT_STOP,         // Stream is running    
+    STREAM_EVENT_PAUSE,        // Audio stream paused
+    STREAM_EVENT_RESUME,       // Audio stream resumed
+    STREAM_EVENT_MUTED,        // Audio stream muted
+    STREAM_EVENT_UNMUTED,      // Audio stream unmuted
+    STREAM_STATUS_MAXVALUE     // Enum count, keep at the end
+} StreamEventT;
+
+// Define default behavior of audio role when interrupted by higher priority sources (in configuration)
+#define AHL_INTERRUPTEDBEHAVIOR_CONTINUE_STR "continue" // Continue to play when interrupted (e.g. media may be ducked)
+#define AHL_INTERRUPTEDBEHAVIOR_CANCEL_STR "cancel"     // Abort playback when interrupted (e.g. non-important HMI feedback that does not make sense later)
+#define AHL_INTERRUPTEDBEHAVIOR_PAUSE_STR "pause"       // Pause source when interrupted, to be resumed afterwards (e.g. non-temporal guidance)
 
 #define AHL_ENDPOINT_PROPERTY_EVENT "ahl_endpoint_property_event"
 #define AHL_ENDPOINT_VOLUME_EVENT "ahl_endpoint_volume_event"
@@ -80,15 +89,6 @@ typedef enum SampleType {
   AHL_FORMAT_MAXVALUE,                  // Enum count, keep at the end
 } SampleTypeT;
 
-// Stream event types
-typedef enum StreamEventType {
-    AHL_STREAMEVENT_START = 0,          // Audio streaming should start
-    AHL_STREAMEVENT_STOP,               // Audio streaming should stop
-    AHL_STREAMEVENT_UNMUTE,             // Audio stream unmuted
-    AHL_STREAMEVENT_MUTE,               // Audio stream muted
-    AHL_STREAMEVENT_MAXVALUE,           // Enum count, keep at the end
-} StreamEventTypeT;
-
 // Known audio domain string definitions (for configuration file format and device URI interpretation)
 #define AHL_DOMAIN_ALSA "alsa"
 #define AHL_DOMAIN_PULSE "pulse"
@@ -99,7 +99,7 @@ typedef enum StreamEventType {
 #define AHL_ROLE_WARNING "warning"             // Safety-relevant or critical alerts/alarms
 #define AHL_ROLE_GUIDANCE "guidance"           // Important user information where user action is expected (e.g. navigation instruction)
 #define AHL_ROLE_NOTIFICATION "notification"   // HMI or else notifications (e.g. touchscreen events, speech recognition on/off,...)
-#define AHL_ROLE_COMMUNICATION "communications" // Voice communications (e.g. handsfree, speech recognition)
+#define AHL_ROLE_COMMUNICATION "communication" // Voice communications (e.g. handsfree, speech recognition)
 #define AHL_ROLE_ENTERTAINMENT "entertainment"  // Multimedia content (e.g. tuner, media player, etc.)
 #define AHL_ROLE_SYSTEM "system"               // System level content or development
 #define AHL_ROLE_STARTUP "startup"             // Early (startup) sound
@@ -113,7 +113,7 @@ typedef enum StreamEventType {
 #define AHL_PROPERTY_EQ_MID "eq_mid" 
 #define AHL_PROPERTY_EQ_HIGH "eq_treble"
 
-// Standardized list of events
+// Standardized list of events (not enforced in any way, just helps compatibility)
 #define AHL_EVENTS_PLAYSOUND "play_sound"
 #define AHL_EVENTS_ECHOCANCEL_ENABLE "echocancel_enable"
 #define AHL_EVENTS_ECHOCANCEL_DISABLE "echocancel_disable"
