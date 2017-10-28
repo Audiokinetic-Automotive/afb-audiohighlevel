@@ -118,11 +118,9 @@
         },
         "x-permissions": {
             "streamcontrol": { "permission": "urn:AGL:permission:audio:public:streamcontrol"},
-            "routingcontrol": { "permission": "urn:AGL:permission:audio:public:routingcontrol"},
+            "endpointcontrol": { "permission": "urn:AGL:permission:audio:public:endpointcontrol"},
             "audiostream": { "permission": "urn:AGL:permission:audio:public:audiostream"},
-            "prioritysignal": { "permission": "urn:AGL:permission:audio:public:prioritysignal"},
-            "soundevent": {"permission": "urn:AGL:permission:audio:public:soundevent"},
-            "streammonitor": {"permission": "urn:AGL:permission:audio:public:streammonitor"}
+            "soundevent": {"permission": "urn:AGL:permission:audio:public:soundevent"}
         },
         "responses": {
             "200": {
@@ -135,9 +133,7 @@
                     }
                 }
             },
-            "400": {
-                "description": "Invalid arguments"
-            }
+            "400": { "description": "Invalid arguments" }
         }
     },    
     "paths": {
@@ -185,8 +181,7 @@
                             "items": { "$ref": "#/components/schemas/endpoint_info"}
                         }
                     },
-                    "400": {
-                        "$ref": "#/components/responses/400" }
+                    "400": { "$ref": "#/components/responses/400" }
                 }
             }
         },
@@ -265,12 +260,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "$ref": "#/components/responses/200"
-                    },
-                    "400": {
-                        "$ref": "#/components/responses/400"
-                    }
+                    "200": { "$ref": "#/components/responses/200" },
+                    "400": { "$ref": "#/components/responses/400" }
                 }
             }
         },
@@ -303,9 +294,6 @@
         "/get_stream_info": {
             "description": "Retrieve stream information",
             "get": {
-                "x-permissions": {
-                    "$ref": "#/components/x-permissions/streamcontrol"
-                },
                 "parameters": [
                     {
                         "in": "query",
@@ -327,9 +315,9 @@
             }
         },
         "/set_volume": {
-            "description": "Set volume",
+            "description": "Set volume on endpoint",
             "get": {
-                "x-permissions": { "$ref": "#/components/x-permissions/streamcontrol" },
+                "x-permissions": { "$ref": "#/components/x-permissions/endpointcontrol" },
                 "parameters": [
                     {
                         "in": "query",
@@ -357,7 +345,7 @@
             }
         },
         "/get_volume": {
-            "description": "Get volume",
+            "description": "Get endpoint volume",
             "get": {
                 "parameters": [
                     {
@@ -385,8 +373,8 @@
                 }
             }
         },
-        "/get_list_properties": {
-            "description": "Retrieve a list of supported properties for a particular endpoint",
+        "/get_endpoint_info": {
+            "description": "Retrieve endpoint information including its properties",
             "get": {
                 "parameters": [
                     {
@@ -409,9 +397,9 @@
             }
         },
         "/set_property": {
-            "description": "Set property value",
+            "description": "Set endpoint property value",
             "get": {
-                "x-permissions": { "$ref": "#/components/x-permissions/streamcontrol" },
+                "x-permissions": { "$ref": "#/components/x-permissions/endpointcontrol" },
                 "parameters": [
                     {
                         "in": "query",
@@ -445,7 +433,7 @@
             }
         },
         "/get_property": {
-            "description": "Get property value",
+            "description": "Get endpoint property value",
             "get": {
                 "parameters": [
                     {
@@ -479,8 +467,8 @@
                 }
             }
         },
-        "/get_list_events": {
-            "description": "Retrieve a list of supported events for a particular audio role",
+        "/get_list_actions": {
+            "description": "Retrieve a list of supported actions for a particular audio role",
             "get": {
                 "parameters": [
                     {
@@ -491,23 +479,19 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "$ref": "#/components/responses/200"
-                    },
-                    "400": {
-                        "$ref": "#/components/responses/400"
-                    }
+                    "200": { "$ref": "#/components/responses/200" },
+                    "400": { "$ref": "#/components/responses/400" }
                 }
             }
         },
-        "/post_event": {
-            "description": "Post sound or audio device related event (extendable mechanism)",
+        "/post_action": {
+            "description": "Post sound or audio device related action event (extendable mechanism)",
             "get": {
                 "x-permissions": { "$ref": "#/components/x-permissions/soundevent" },
                 "parameters": [
                     {
                         "in": "query",
-                        "name": "event_name",
+                        "name": "action_name",
                         "required": true,
                         "schema": { "type": "string" }
                     },
@@ -525,7 +509,7 @@
                     },
                     {
                         "in": "query",
-                        "name": "event_context",
+                        "name": "action_context",
                         "required": false,
                         "schema": { "type": "object" }
                     }

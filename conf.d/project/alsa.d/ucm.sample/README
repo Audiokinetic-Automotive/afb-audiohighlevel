@@ -1,2 +1,0 @@
-Should match sound card name ex: "HDA Intel PCH"
-cp -r . /usr/share/alsa/ucm
