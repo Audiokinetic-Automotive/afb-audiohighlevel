@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2017 "Audiokinetic Inc"
- * Author Francois Thibault <fthibault@audiokinetic.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,55 +18,49 @@
 #define AHL_BINDING_INCLUDE
 
 #define AFB_BINDING_VERSION 2
-#include <afb/afb-binding.h>
+
+//#define AHL_DISCONNECT_POLICY // define for debugging HLB in standalone only
+
 #include <json-c/json.h>
 #include <glib.h>
 
+#include <afb/afb-binding.h>
 #include "ahl-interface.h"
+#include "ahl-policy-utils.h"
+
 
 #ifndef PUBLIC
   #define PUBLIC
 #endif
 
-/////////////// Binding private information //////////////////
+#define AHL_SUCCESS 0
+#define AHL_FAIL 1
 
-#define AUDIOHL_MAX_DEVICE_URI_LENGTH 256
-#define AUDIOHL_MAX_DEVICE_NAME_LENGTH 256
-#define AUDIOHL_MAX_AUDIOROLE_LENGTH 128
-#define AUDIOHL_MAX_HALAPINAME_LENGTH 64
-#define AUDIOHL_POLICY_ACCEPT 1
-#define AUDIOHL_POLICY_REJECT 0
+#define AHL_ACCESS_CONTROL_GRANTED 1
+#define AHL_ACCESS_CONTROL_DENIED 0
 
-typedef struct EndpointInfo
-{
-    endpointID_t    endpointID;     // Unique endpoint ID (per type)
-    EndpointTypeT   type;           // Source or sink device
-    char            deviceName[AUDIOHL_MAX_DEVICE_NAME_LENGTH];   // Device name for applications to display
-    char            deviceURI[AUDIOHL_MAX_DEVICE_URI_LENGTH];     // Associated URI 
-    DeviceURITypeT  deviceURIType;  // Device URI type (includes audio domain information)
-    char            audioRole[AUDIOHL_MAX_AUDIOROLE_LENGTH];     // Audio role that registered this endpoint -> private
-    char            halAPIName[AUDIOHL_MAX_AUDIOROLE_LENGTH];    // HAL associated with the device (for volume control) -> private
-    int             cardNum;                                     // HW card number -> private
-    int             deviceNum;                                   // HW device number -> private                                   
-    int             subDeviceNum;                                // HW sub device number -> private
-    // Cached endpoint properties
-    GHashTable *    pStatesHT;                                   // Keep all known states in key value pairs
-} EndpointInfoT;
+#define AHL_UNDEFINED -1
+#define AHL_STR_MAX_LENGTH 256
 
-typedef struct StreamInfo {
-    streamID_t      streamID;
-    EndpointInfoT   endpointInfo;
-} StreamInfoT;
+
+typedef struct RoleInfo {
+    char *              pRoleName;          // Role string identifier
+    int                 iPriority;          // Role normalized priority (0-100)
+    InterruptBehaviorT  eInterruptBehavior; // Role behavior when interrupting lower priority streams
+    GPtrArray *         pActionList;        // List of supported actions for the role (gchar*)
+    GPtrArray *         pSourceEndpoints;   // Source endpoints info (EndpointInfoT*)
+    GPtrArray *         pSinkEndpoints;     // Sink endpoints info (EndpointInfoT*)
+} RoleInfoT;
 
 // Parts of the context that are visible to the policy (for state based decisions)
 typedef struct AHLPolicyCtx {
-    GPtrArray *     pSourceEndpoints; // Array of source end points for each audio role (GArray*)
-    GPtrArray *     pSinkEndpoints;   // Array of sink end points for each audio role (GArray*)
-    GArray *        pRolePriority;    // List of role priorities (int).  TODO: Should be hash table with role name as key
-    GArray *        pAudioRoles;      // List of audio roles (GString)
-    GArray *        pActiveStreams;   // List of active streams (StreamInfoT)
-    int             iNumberRoles;     // Number of audio roles from configuration   
-    // TODO: Global properties   -> exposed to policy
+    GHashTable *        pRoleInfo;         // Hash table of role information structure (RoleInfoT*) accessed by role name 
+    GHashTable *        pStreams;          // List of active streams (StreamInfoT*) accessed by streamID
+    GPtrArray *         pHALList;          // List of HAL dependencies
+    // TODO: Events need to be sent directly by HLB when separation with policy complete
+    struct afb_event    propertyEvent;     // AGL event used when property changes 
+    struct afb_event    volumeEvent;       // AGL event used when volume changes
+    struct afb_event    postActionEvent;   // AGL event used on post action call
 } AHLPolicyCtxT;
 
 // Global binding context
@@ -76,24 +69,26 @@ typedef struct AHLCtx {
     endpointID_t    nextSourceEndpointID;       // Counter to assign new ID
     endpointID_t    nextSinkEndpointID;         // Counter to assign new ID
     endpointID_t    nextStreamID;               // Counter to assign new ID
-    GArray *        pHALList;                   // List of HAL dependencies
-    GHashTable *    pDefaultStatesHT;           // List of states and default values known to configuration
 } AHLCtxT;
 
-PUBLIC int AhlBindingInit();
-// ahl-deviceenum.c
-PUBLIC int  EnumerateSources(json_object * in_jSourceArray, int in_iRoleIndex, char * in_pRoleName);
-PUBLIC int  EnumerateSinks(json_object * in_jSinkArray, int in_iRoleIndex, char * in_pRoleName);
-// ahl-config.c
-PUBLIC int  ParseHLBConfig();
-// ahl-policy.c
-PUBLIC int  Policy_OpenStream(char *pAudioRole, EndpointTypeT endpointType, endpointID_t endpointID);
-PUBLIC int  Policy_SetVolume(EndpointTypeT endpointType, endpointID_t endpointID, char *volumeStr, int rampTimeMS);
-PUBLIC int  Policy_SetProperty(EndpointTypeT endpointType, endpointID_t endpointID, char *propertyName, char *propValueStr, int rampTimeMS);
-PUBLIC int  Policy_SetState(EndpointTypeT endpointType, endpointID_t endpointID, char *pStateName, char *pStateValue);
-PUBLIC int  Policy_PostSoundEvent(char *eventName, char *audioRole, char *mediaName, void *audioContext);
-PUBLIC int  Policy_AudioDeviceChange();
+// Client specific binding context
+typedef struct AHLClientCtx {
+     GArray *        pStreamAccessList;           // List of streams that client has control over
+} AHLClientCtxT;
 
-#define AUDIOHL_MAXHALCONTROLNAME_LENGTH 128
+// ahl-binding.c
+PUBLIC int AhlBindingInit();
+PUBLIC void AhlOnEvent(const char *evtname, json_object *eventJ);
+
+// ahl-deviceenum.c
+int  EnumerateDevices(json_object * in_jDeviceArray, char * in_pAudioRole, EndpointTypeT in_deviceType, GPtrArray * out_pEndpointArray);
+EndpointInfoT * InitEndpointInfo();
+void TermEndpointInfo( EndpointInfoT * out_pEndpointInfo );
+// ahl-config.c
+int  ParseHLBConfig();
+// ahl-policy.c
+#ifndef AHL_DISCONNECT_POLICY
+PUBLIC void audiohlapi_raise_event(json_object *EventDataJ);
+#endif
 
 #endif // AHL_BINDING_INCLUDE

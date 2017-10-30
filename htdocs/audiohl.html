@@ -1,141 +1,90 @@
 <html>
+
 <head>
     <link rel="stylesheet" href="AudioBinding.css">
     <title>Audio High Level Test</title>
-       
+
     <script type="text/javascript" src="AFB-websock.js"></script>
     <script type="text/javascript" src="AudioBinding.js"></script>
 </head>
-    
-<body onload="init('audiohl')">
-    
-    <button id="connected" onclick="init('audiohl');">Binder WS Fail</button>   
+
+<body onload="init('audiohl'); ep_type='sink' ; ar='Entertainment' ; ep_id=0 ; s_id=0 ; prop_val=0 ; vol_val='0' ; p_name='balance' ; st_state='idle' ; st_mute='off'">
+
+    <button id="connected" onclick="init('audiohl');">Binder WS Fail</button> <br><br>
+    <button id="monitoring" onclick="window.open('/monitoring/monitor.html','_monitor_audio')">Debug/Monitoring</a></button>
 
     <b>Audio Role</b>
     <select select_id='audiorole_list' onclick='ar=this.value'>
-        <option selected value=''>Select...</option>
-        <option value='warning' >Warning</option>
-        <option value='guidance'>Guidance</option>
-        <option value='notification'>Notification</option>
-        <option value='communication'>Communication</option>
-        <option value='entertainment'>Entertainment</option>
-        <option value='system'>System</option>
-        <option value='startup'>Startup</option>
-        <option value='shutdown'>Shutdown</option>
-    </select>
+        <option value='Warning' >Warning</option>
+        <option value='Guidance'>Guidance</option>
+        <option value='Notification'>Notification</option>
+        <option value='Communication'>Communication</option>
+        <option selected value='Entertainment'>Entertainment</option>
+        <option value='System'>System</option>
+        <option value='Startup'>Startup</option>
+        <option value='Shutdown'>Shutdown</option>
+    </select><br>
     <b>Endpoint Type</b>
-    <select select_id='endpoint_type_list' onclick='ep_type=this.selectedIndex'>
-        <option value=0>Source</option>
-        <option value=1>Sink</option>
-        <option selected value=''>Select...</option>
-    </select>
-    <b>Endpoint ID</b>
-        <select select_id='endpoint_id_list' onclick='ep_id=this.selectedIndex'>
-        <option value='0'>0</option>
-        <option value='1'>1</option>
-        <option value='2'>2</option>
-        <option value='3'>3</option>
-        <option value='4'>4</option>
-        <option value='5'>5</option>
-        <option value='6'>6</option>
-        <option value='7'>7</option>
-        <option value='8'>8</option>
-        <option value='9'>9</option>
-        <option value='10'>10</option>
-        <option value='11'>11</option>
-        <option value='12'>12</option>
-        <option value='13'>13</option>
-        <option value='14'>14</option>
-        <option value='15'>15</option>
-        <option value='16'>16</option>
-        <option value='17'>17</option>
-        <option value='18'>18</option>
-        <option value='19'>19</option>
-        <option selected value=''>Select...</option>
-    </select>
-    <b>Stream ID</b>
-    <select select_id='stream_id_list' onclick='s_id=this.selectedIndex'>
-        <option value='0'>0</option>
-        <option value='1'>1</option>
-        <option value='2'>2</option>
-        <option value='3'>3</option>
-        <option value='4'>4</option>
-        <option value='5'>5</option>
-        <option value='6'>6</option>
-        <option value='7'>7</option>
-        <option value='8'>8</option>
-        <option value='9'>9</option>
-        <option value='10'>10</option>
-        <option value='11'>11</option>
-        <option value='12'>12</option>
-        <option value='13'>13</option>
-        <option value='14'>14</option>
-        <option value='15'>15</option>
-        <option value='16'>16</option>
-        <option value='17'>17</option>
-        <option value='18'>18</option>
-        <option value='19'>19</option>
-        <option selected value=''>Select...</option>
-    </select>
-  <b>Property</b>
-        <select select_id='property_name_list' onclick='p_name=this.value'>
-        <option value='balance'>Balance</option>
+    <select select_id='endpoint_type_list' onclick='ep_type=this.value'>
+        <option value='source'>Source</option>
+        <option selected value='sink'>Sink</option>
+    </select><br>
+    <b><label for="epidsel">Endpoint ID</label></b>
+    <input id="epidsel" type="number" value="0" min=0 step=1 maxlength=4 onchange='ep_id=eval(parseInt(this.value))'><br>
+    <b><label for="stidsel">Stream ID</label></b>
+    <input id="stidsel" type="number" value="0" min=0 step=1 maxlength=4 onchange='s_id=eval(parseInt(this.value))'><br>
+    <b>Stream State</b>
+    <select select_id='stream_state' onclick='st_state=this.value'>
+        <option selected value='idle'>Idle</option>
+        <option value='running'>Running</option>
+        <option value='paused'>Paused</option>
+    </select><br>
+    <b>Stream Mute State</b>
+    <select select_id='stream_mute' onclick='st_mute=this.value'>
+        <option selected value='off'>Unmuted</option>
+        <option value='on'>Muted</option>
+    </select><br>
+    <b>Property</b>
+    <select select_id='property_name_list' onclick='p_name=this.value'>
+        <option selected value='balance'>Balance</option>
         <option value='fade'>Fade</option>
-        <option value='eq_low'>EQ Low</option>
+        <option value='eq_bass'>EQ Bass</option>
         <option value='eq_mid'>EQ Mid</option>
-        <option value='eq_high'>EQ High</option>
-        <option selected value=''>Select...</option>
-    </select>
-
-    <b>State Name</b>
-    <select select_id='state_name_list' onclick='st_name=this.value'>
-        <option value='mute'>Mute</option>
-        <option value='active'>Active</option>
-        <option selected value=''>Select...</option>
-    </select>
-
-    <b>State Value</b>
-    <select select_id='state_value_list' onclick='st_val=this.value'>
-        <option value='on'>On</option>
-        <option value='off'>Off</option>
-        <option selected value=''>Select...</option>
-    </select> 
-    <b>Volume Value</b>
-    <select select_id='value_list' onclick='val=this.value'>
-        <option value='0'>0</option>
-        <option value='20'>20</option>
-        <option value='40'>40</option>
-        <option value='60'>60</option>
-        <option value='80'>80</option>
-        <option value='100'>100</option>
-        <option selected value=''>Select...</option>
-    </select>
+        <option value='eq_treble'>EQ Treble</option>  
+    </select><br>
+    <b><label for="valpropsel">Volume Value</label></b>
+    <input id="volvalsel" type="number" value="0" min=0 max=100 step=1 maxlength=4 onchange='vol_val=this.value'><br>
+    <b><label for="valpropsel">Property Value</label></b>
+    <input id="propvalsel" type="number" value="0" min=0 max=100 step=1 maxlength=4 onchange='prop_val=eval(parseInt(this.value))'><br>
 
     <br>
     <ol>
-    <li><button onclick="callbinder('audiohl','get_sources', {audio_role:ar})">get_sources(audio_role)</button></li>
-    <li><button onclick="callbinder('audiohl','get_sinks', {audio_role:ar})">get_sinks(audio_role)</button></li>
-    <li><button onclick="callbinder('audiohl','stream_open', {audio_role:ar,endpoint_type:ep_type})">stream_open(audio_role,endpoint_type)</button></li>
-    <li><button onclick="callbinder('audiohl','stream_open', {audio_role:ar,endpoint_type:ep_type,endpoint_id:ep_id})">stream_open(audio_role,enpoint_type,endpoint_id)</button></li>
-    <li><button onclick="callbinder('audiohl','stream_close', {stream_id:s_id})">stream_close(stream_id)</button></li>
-    <li><button onclick="callbinder('audiohl','set_volume', {endpoint_type:ep_type,endpoint_id:ep_id,volume:val})">set_volume(endpoint_type,endpoint_id,value)</button></li>   
-    <li><button onclick="callbinder('audiohl','get_volume', {endpoint_type:ep_type,endpoint_id:ep_id})">get_volume(endpoint_type,endpoint_id)</button></li>   
-    <li><button onclick="callbinder('audiohl','set_property', {endpoint_type:ep_type,endpoint_id:ep_id,property_name:p_name,value:val})">set_property(endpoint_type,endpoint_id,property,value)</button></li>   
-    <li><button onclick="callbinder('audiohl','get_property', {endpoint_type:ep_type,endpoint_id:ep_id,property_name:'balance'})">get_property(endpoint_type,endpoint_id,'balance')</button></li>  
-    <li><button onclick="callbinder('audiohl','set_state', {endpoint_type:ep_type,endpoint_id:ep_id,state_name:st_name,state_value:st_val})">set_state(endpoint_type,endpoint_id,stateName,stateVal)</button></li>
-    <li><button onclick="callbinder('audiohl','get_state', {endpoint_type:ep_type,endpoint_id:ep_id,state_name:st_name})">get_state(endpoint_type,endpoint_id,stateName)</button></li>
-    <li><button onclick="callbinder('audiohl','post_sound_event', {event_name:'PlaySound',audio_role:'notification',media_name:'HomeButton.wav'})">post_sound_event('PlaySound','HomeButton.wav')</button></li>
-    <li><button onclick="callbinder('audiohl','subscribe', {events:['SinkDeviceChanges','StreamStatusChanges']})">subscribe(['SinkDeviceChanges','StreamStatusChanges'])</button>
-    <li><button onclick="callbinder('audiohl','unsubscribe', {events:['SinkDeviceChanges','StreamStatusChanges']})">unsubscribe(['SinkDeviceChanges','StreamStatusChanges'])</button>
-    </li>
-
-    <br>
+        <li><button onclick="callbinder('audiohl','get_sources', {audio_role:ar})">get_sources(audio_role)</button></li>
+        <li><button onclick="callbinder('audiohl','get_sinks', {audio_role:ar})">get_sinks(audio_role)</button></li>
+        <li><button onclick="callbinder('audiohl','stream_open', {audio_role:ar,endpoint_type:ep_type})">stream_open(audio_role,endpoint_type)</button></li>
+        <li><button onclick="callbinder('audiohl','stream_open', {audio_role:ar,endpoint_type:ep_type,endpoint_id:ep_id})">stream_open(audio_role,enpoint_type,endpoint_id)</button></li>
+        <li><button onclick="callbinder('audiohl','stream_close', {stream_id:s_id})">stream_close(stream_id)</button></li>
+        <li><button onclick="callbinder('audiohl','get_stream_info', {stream_id:s_id})">get_stream_info(stream_id)</button></li>
+        <li><button onclick="callbinder('audiohl','set_stream_state', {stream_id:s_id,state:st_state})">set_stream_state(stream_id,stream_state)</button></li>
+        <li><button onclick="callbinder('audiohl','set_stream_mute', {stream_id:s_id,mute:st_mute})">set_stream_mute(stream_id,mute)</button></li>
+        <li><button onclick="callbinder('audiohl','set_volume', {endpoint_type:ep_type,endpoint_id:ep_id,volume:vol_val})">set_volume(endpoint_type,endpoint_id,value)</button></li>
+        <li><button onclick="callbinder('audiohl','get_volume', {endpoint_type:ep_type,endpoint_id:ep_id})">get_volume(endpoint_type,endpoint_id)</button></li>
+        <li><button onclick="callbinder('audiohl','set_property', {endpoint_type:ep_type,endpoint_id:ep_id,property_name:p_name,value:prop_val})">set_property(endpoint_type,endpoint_id,property,value)</button></li>
+        <li><button onclick="callbinder('audiohl','get_property', {endpoint_type:ep_type,endpoint_id:ep_id,property_name:p_name})">get_property(endpoint_type,endpoint_id,property)</button></li>
+        <li><button onclick="callbinder('audiohl','get_endpoint_info', {endpoint_type:ep_type,endpoint_id:ep_id})">get_endpoint_info(endpoint_type,endpoint_id)</button></li>
+        <li><button onclick="callbinder('audiohl','get_list_actions', {audio_role:ar})">get_list_actions(audio_role)</button></li>
+        <li><button onclick="callbinder('audiohl','post_action', {action_name:'emergency_brake',audio_role:ar,media_name:'Warning.wav'})">post_action(emergency_brake,audio_role,'Warning.wav')</button></li>
+        <li><button onclick="callbinder('audiohl','subscribe', {events:['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action']})">subscribe(['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action'])</button>
+        <li><button onclick="callbinder('audiohl','unsubscribe', {events:['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action']})">unsubscribe(['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action'])</button></li>
     </ol>
-    
+
     <div id="main" style="visibility:hidden">
-    <ol>
-    <li>Question <pre id="question"></pre>
-    <li>Response <pre id="output"></pre>
-    <li>Events:  <pre id="outevt"></pre>
-    </ol>
-    </div>    
+        <ol>
+            <li>Question
+                <pre id="question"></pre>
+                <li>Response
+                    <pre id="output"></pre>
+                    <li>Events:
+                        <pre id="outevt"></pre>
+        </ol>
+    </div>

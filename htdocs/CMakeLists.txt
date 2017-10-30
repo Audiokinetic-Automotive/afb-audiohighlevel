@@ -23,7 +23,7 @@
 ##################################################
 PROJECT_TARGET_ADD(htdocs)
 
-    file(GLOB SOURCE_FILES "*.html" "*.js" "*.jpg" "*.css")
+    file(GLOB SOURCE_FILES LIST_DIRECTORIES true "*.html" "*.js" "*.jpg" "*.css")
 
     add_input_files("${SOURCE_FILES}")
     

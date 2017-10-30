@@ -1,0 +1,128 @@
+{
+    "version": "0.2.0",
+    "policy_module": "AudioPolicy_v1",
+    "description": "High-level binding configuration file",
+    "note": "Devices and routings are always listed in order of priority (for device selection rules)",
+    "hal_list": ["ensoniq","usbaudio"],
+    "audio_roles": [
+        {
+            "name": "Warning",
+            "id": 0,
+            "description": "Safety-relevant or critical alerts/alarms",
+            "priority": 100,
+            "output": [
+                "alsa.plug:Warning_Main",
+                "alsa.plug:Warning_DriverHR"
+            ],
+            "actions": [
+                "emergency_brake",
+                "collision_warning",
+                "blind_spot_warning"
+            ],
+            "interupt_behavior": "pause"
+        },
+        {
+            "name": "Guidance",
+            "id": 1,
+            "description": "Important user information where user action is expected (e.g. navigation instruction)",
+            "priority": 25,
+            "output": [
+                "alsa.plug:Guidance_Main",
+                "alsa.plug:Guidance_DriverHR"
+            ],
+            "actions": [
+                "lane_guidance_left",
+                "lane_guidance_right",
+                "destination_reached"
+            ],
+            "interupt_behavior": "continue"
+        },
+        {
+            "name": "Notification",
+            "id": 2,
+            "description": "HMI or else notifications (e.g. touchscreen events, speech recognition on/off,...)",
+            "priority": 0,
+            "output": [
+                "alsa.plug:Notification_Main",
+                "alsa.plug:Notification_DriverHR"
+            ],
+            "actions": [
+                "home",
+                "context_switch",
+                "accept",
+                "cancel",
+                "selection_change"
+            ],
+            "interupt_behavior": "cancel"
+        },
+        {
+            "name": "Communication",
+            "id": 3,
+            "description": "Voice communications (e.g. handsfree, speech recognition)",
+            "priority": 50,
+            "output": [
+                "alsa.plug:Communications_Main",
+                "alsa.plug:Communications_DriverHR",
+            ],
+            "input": [
+                "alsa.hw:0",
+            ],
+            "actions": [
+                "bt_device_connected",
+                "bt_device_disconnected",
+                "sms_received"
+            ],
+            "interupt_behavior": "continue"
+        },
+        {
+            "name": "Entertainment",
+            "id": 4,
+            "description": "Multimedia content (e.g. tuner, media player, etc.)",
+            "priority": 0,
+            "output": [
+                "alsa.plug:Entertainment_Main",
+                "alsa.plug:Entertainment_DriverHR",
+            ],
+            "interupt_behavior": "pause"
+        },
+        {
+            "name": "System",
+            "id": 5,
+            "description": "System level content or development",
+            "priority": 100,
+            "output": [
+                "alsa.hw:0"
+            ],
+            "input": [
+                "alsa.hw:0"
+            ],
+            "interupt_behavior": "continue"
+        },
+        {
+            "name": "Startup",
+            "id": 6,
+            "description": "Early (startup) sound",
+            "priority": 100,
+            "output": [
+                "alsa.hw:0"
+            ],
+            "actions": [
+                "welcome_sound"
+            ],
+            "interupt_behavior": "pause"
+        },
+        {
+            "name": "Shutdown",
+            "id": 7,
+            "description": "Late (shutdown) sound",
+            "priority": 100,
+            "output": [
+                "alsa.hw:0"
+            ],
+            "actions": [
+                "goodbye_sound"
+            ],
+            "interupt_behavior": "cancel"
+        }
+    ]
+}
