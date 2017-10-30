@@ -8,10 +8,6 @@
 ```
 # Initial clone with submodules
 git clone https://github.com/Audiokinetic-Automotive/afb-audiohighlevel.git
-<<<<<<< HEAD
-cd  afb-audiohighlevel
-=======
->>>>>>> 8a584f01b46d251fdc5de8b071eff755d99f0090
 
 ```
 

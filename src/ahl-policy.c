@@ -25,6 +25,41 @@
 
 #ifndef AHL_DISCONNECT_POLICY
 
+#define MAX_ACTIVE_STREAM_POLICY 30
+#define POLICY_FAIL     1
+#define POLICY_SUCCESS  0
+
+#define AHL_POLICY_UNDEFINED_HALNAME "UNDEFINED"
+#define AHL_POLICY_UNDEFINED_DISPLAYNAME "DeviceNotFound"
+
+typedef enum SystemState {
+    SYSTEM_STARTUP = 0,     // Startup
+    SYSTEM_SHUTDOWN,        // ShutDown
+    SYSTEM_NORMAL,          // Normal
+    SYSTEM_LOW_POWER,       // Low Power, save mode
+    SYSTEM_MAXVALUE         // Enum count, keep at the end
+} SystemStateT;
+
+typedef struct HalInfo {
+    char *pDevID;
+    char *pAPIName;
+    char *pDisplayName;
+} HalInfoT;
+
+typedef struct StreamConfig {
+    int iNbMaxStream;
+    int iVolumeInit;
+    int iVolumeDuckValue;
+} StreamConfigT;
+
+// Global Policy Local context
+typedef struct PolicyLocalCtx {
+    GArray *     pSourceEndpoints; // List of Source Endpoint with playing stream or interrupted stream
+    GArray *     pSinkEndpoints;   // List of Sink Endpoint with playing stream or interrupted stream
+    GPtrArray *  pHALList;
+    SystemStateT systemState;
+} PolicyLocalCtxT;
+
 //  Global Context
 PolicyLocalCtxT g_PolicyCtx;
 
