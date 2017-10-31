@@ -60,6 +60,7 @@ set (PKG_REQUIRED_LIST
 	afb-daemon
 	json-c
 	libafbwsc
+	glib-2.0
 )
 
 # Compilation options definition
