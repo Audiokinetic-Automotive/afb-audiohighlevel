@@ -54,6 +54,7 @@ set(CONTROL_SUPPORT_LUA 1 CACHE BOOL "Active or not LUA Support")
 # PKG_CONFIG required packages
 # -----------------------------
 set (PKG_REQUIRED_LIST
+        glib-2.0
 	alsa>=1.1.2
 	libsystemd>=222
 	libmicrohttpd>=0.9.55
@@ -86,6 +87,7 @@ set(COMPILE_OPTIONS
 -DMAX_LINEAR_DB_SCALE=24 # until 24db volume normalisation use a simple linear scale
 -DTLV_BYTE_SIZE=256      # Alsa use 4096 as default but 256 should fit most sndcards
 -DCONTROL_MAXPATH_LEN=255
+-DCONTROL_CONFIG_PATH="${CMAKE_SOURCE_DIR}/conf.d/project:${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}"
  CACHE STRING "Compilation flags")
 #set(C_COMPILE_OPTIONS "" CACHE STRING "Compilation flags for C language.")
 #set(CXX_COMPILE_OPTIONS "" CACHE STRING "Compilation flags for C++ language.")
@@ -100,7 +102,7 @@ if(IS_DIRECTORY $ENV{HOME}/opt/afb-monitoring)
 set(MONITORING_ALIAS "--alias=/monitoring:$ENV{HOME}/opt/afb-monitoring")
 endif()
 
-set(CLOSING_MESSAGE "Debug: afb-daemon --name=afb-aaaa --port=1234 --ws-server=unix:/var/tmp/ahl-4a --cntxtimeout=1 ${MONITORING_ALIAS} --ldpaths=package/lib:../../alsa-4a/build/package/lib:../../hal-sample-4a/build/package/lib --workdir=. --roothttp=../htdocs --token= --verbose ")
+set(CLOSING_MESSAGE "Debug: afb-daemon --name=afb-audiok4a --port=1234 --ws-server=unix:/var/tmp/ahl-4a --cntxtimeout=1 ${MONITORING_ALIAS} --binding=package/lib/afb-audiohighlevel.so --ldpaths=../../alsa-4a/build/package/lib:../../hal-sample-4a/build/package/lib --workdir=. --roothttp=../htdocs --token= --verbose ")
 
 
 # Optional location for config.xml.in

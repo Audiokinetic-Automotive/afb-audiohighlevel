@@ -12,7 +12,6 @@
         <in>ahl-deviceenum.c</in>
       </df>
       <df name="ahl-utilities">
-        <in>ahl-interface.h</in>
         <in>ahl-policy-utils.c</in>
         <in>ahl-policy-utils.h</in>
       </df>
@@ -86,8 +85,6 @@
       <item path="ahl-binding/ahl-config.c" ex="false" tool="0" flavor2="0">
       </item>
       <item path="ahl-binding/ahl-deviceenum.c" ex="false" tool="0" flavor2="0">
-      </item>
-      <item path="ahl-utilities/ahl-interface.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="ahl-utilities/ahl-policy-utils.c" ex="false" tool="0" flavor2="0">
       </item>

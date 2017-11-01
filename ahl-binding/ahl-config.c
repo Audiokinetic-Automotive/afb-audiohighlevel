@@ -19,6 +19,7 @@
 #include <string.h>
 #include <json-c/json.h>
 #include "wrap-json.h"
+#include "filescan-utils.h"
 
 #include "ahl-binding.h"
 
@@ -40,21 +41,63 @@ static InterruptBehaviorT InterruptBehaviorToEnum(char * in_pInterruptBehaviorSt
         return INTERRUPTBEHAVIOR_MAXVALUE;
 }
 
+static json_object* CtlConfigScan(const char *dirList, const char *prefix) {
+    char controlFile [CONTROL_MAXPATH_LEN];
+    strncpy(controlFile, prefix, CONTROL_MAXPATH_LEN);
+    strncat(controlFile, GetBinderName(), CONTROL_MAXPATH_LEN);
+
+    // search for default dispatch config file
+    json_object* responseJ = ScanForConfig(dirList, CTL_SCAN_RECURSIVE, controlFile, ".json");
+
+    return responseJ;
+}
+
+static char* CtlConfigSearch(const char *dirList, const char *prefix) {
+    int index, err;
+
+    // search for default dispatch config file
+    json_object* responseJ = CtlConfigScan (dirList, prefix);
+    if (!responseJ) return NULL;
+
+    // We load 1st file others are just warnings
+    for (index = 0; index < json_object_array_length(responseJ); index++) {
+        json_object *entryJ = json_object_array_get_idx(responseJ, index);
+
+        char *filename;
+        char*fullpath;
+        err = wrap_json_unpack(entryJ, "{s:s, s:s !}", "fullpath", &fullpath, "filename", &filename);
+        if (err) {
+            AFB_ERROR("CTL-INIT HOOPs invalid JSON entry= %s", json_object_get_string(entryJ));
+            return NULL;
+        }
+
+        if (index == 0) {
+            char filepath[CONTROL_MAXPATH_LEN];
+            strncpy(filepath, fullpath, sizeof (filepath));
+            strncat(filepath, "/", sizeof (filepath));
+            strncat(filepath, filename, sizeof (filepath));
+            return (strdup(filepath));
+        }
+    }
+    // no config found
+    return NULL;
+}
+
 int ParseHLBConfig() {
     char * versionStr = NULL;
     json_object * jAudioRoles = NULL;
     json_object * jHALList = NULL;
     char * policyModule = NULL;
     
-    // TODO: This should be retrieve from binding startup arguments
-    char configfile_path[256];
-    if(getenv("AHL_CONFIG_FILE") == NULL)
-    {
-        AFB_ERROR("Please Set Environnement Variable AHL_CONFIG_FILE");  
-        return 1;  
-    }
+    const char *dirList=getenv("AAAA_CONFIG_PATH");
+    if (!dirList) dirList=CONTROL_CONFIG_PATH;
     
-    sprintf(configfile_path, "%s", getenv("AHL_CONFIG_FILE")); 
+    const char *configfile_path =CtlConfigSearch(dirList, "ahl-");
+    if (!configfile_path) {
+        AFB_ERROR("Error: No control-* config found invalid JSON %s ", dirList);
+        return 1;
+    }
+
     AFB_INFO("High-level config file -> %s\n", configfile_path);
 
     // Open configuration file
