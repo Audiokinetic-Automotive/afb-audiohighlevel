@@ -20,14 +20,21 @@
 
 #ifndef AHL_DISCONNECT_POLICY
 
-int  Policy_Endpoint_Init(json_object *pPolicyEndpointJ);
-int  Policy_OpenStream(json_object *pPolicyStreamJ);
-int  Policy_CloseStream(json_object *pPolicyStreamJ);
-int  Policy_SetStreamState(json_object *pPolicyStreamJ);
-int  Policy_SetStreamMute(json_object *pPolicyStreamJ);
-int  Policy_PostAction(json_object *pPolicyActionJ);
-int  Policy_SetVolume(json_object *pPolicyEndpointJ);
-int  Policy_SetProperty(json_object *pPolicyEndpointJ);
+#define MAX_ACTIVE_STREAM_POLICY 30
+#define POLICY_FAIL     1
+#define POLICY_SUCCESS  0
+
+#define AHL_POLICY_UNDEFINED_HALNAME "UNDEFINED"
+#define AHL_POLICY_UNDEFINED_DISPLAYNAME "DeviceNotFound"
+
+int  Policy_Endpoint_Init(json_object *pInPolicyEndpointJ,json_object **pOutPolicyEndpointJ);
+int  Policy_OpenStream(json_object *pStreamJ);
+int  Policy_CloseStream(json_object *pStreamJ);
+int  Policy_SetStreamState(json_object *pStreamJ);
+int  Policy_SetStreamMute(json_object *pStreamJ);
+int  Policy_PostAction(json_object *pActionJ);
+int  Policy_SetVolume(json_object *pEndpointJ);
+int  Policy_SetProperty(json_object *pEndpointJ);
 int  Policy_Init();
 void Policy_Term(); 
 void Policy_OnEvent(const char *evtname, json_object *eventJ);

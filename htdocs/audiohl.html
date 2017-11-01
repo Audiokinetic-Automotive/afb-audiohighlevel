@@ -59,23 +59,26 @@
 
     <br>
     <ol>
-        <li><button onclick="callbinder('audiohl','get_sources', {audio_role:ar})">get_sources(audio_role)</button></li>
-        <li><button onclick="callbinder('audiohl','get_sinks', {audio_role:ar})">get_sinks(audio_role)</button></li>
+        <li><button onclick="callbinder('audiohl','get_endpoints', {audio_role:ar,endpoint_type:ep_type})">get_endpoints(audio_role,endpoint_type)</button></li>
         <li><button onclick="callbinder('audiohl','stream_open', {audio_role:ar,endpoint_type:ep_type})">stream_open(audio_role,endpoint_type)</button></li>
         <li><button onclick="callbinder('audiohl','stream_open', {audio_role:ar,endpoint_type:ep_type,endpoint_id:ep_id})">stream_open(audio_role,enpoint_type,endpoint_id)</button></li>
         <li><button onclick="callbinder('audiohl','stream_close', {stream_id:s_id})">stream_close(stream_id)</button></li>
+        <li><button onclick="callbinder('audiohl','stream_close', {})">stream_close()</button></li>
         <li><button onclick="callbinder('audiohl','get_stream_info', {stream_id:s_id})">get_stream_info(stream_id)</button></li>
+        <li><button onclick="callbinder('audiohl','set_stream_state', {stream_id:s_id})">set_stream_state(stream_id)</button></li>
         <li><button onclick="callbinder('audiohl','set_stream_state', {stream_id:s_id,state:st_state})">set_stream_state(stream_id,stream_state)</button></li>
-        <li><button onclick="callbinder('audiohl','set_stream_mute', {stream_id:s_id,mute:st_mute})">set_stream_mute(stream_id,mute)</button></li>
-        <li><button onclick="callbinder('audiohl','set_volume', {endpoint_type:ep_type,endpoint_id:ep_id,volume:vol_val})">set_volume(endpoint_type,endpoint_id,value)</button></li>
-        <li><button onclick="callbinder('audiohl','get_volume', {endpoint_type:ep_type,endpoint_id:ep_id})">get_volume(endpoint_type,endpoint_id)</button></li>
-        <li><button onclick="callbinder('audiohl','set_property', {endpoint_type:ep_type,endpoint_id:ep_id,property_name:p_name,value:prop_val})">set_property(endpoint_type,endpoint_id,property,value)</button></li>
-        <li><button onclick="callbinder('audiohl','get_property', {endpoint_type:ep_type,endpoint_id:ep_id,property_name:p_name})">get_property(endpoint_type,endpoint_id,property)</button></li>
+        <li><button onclick="callbinder('audiohl','set_stream_state', {stream_id:s_id,mute:st_mute})">set_stream_state(stream_id,mute)</button></li>
+        <li><button onclick="callbinder('audiohl','set_stream_state', {stream_id:s_id,state:st_state,mute:st_mute})">set_stream_state(stream_id,stream_state,mute)</button></li>
+        <li><button onclick="callbinder('audiohl','set_stream_state', {state:st_state,mute:st_mute})">set_stream_state(stream_state,mute)</button></li>
+        <li><button onclick="callbinder('audiohl','volume', {endpoint_type:ep_type,endpoint_id:ep_id,volume:vol_val})">volume(endpoint_type,endpoint_id,value)</button></li>
+        <li><button onclick="callbinder('audiohl','volume', {endpoint_type:ep_type,endpoint_id:ep_id})">volume(endpoint_type,endpoint_id)</button></li>
+        <li><button onclick="callbinder('audiohl','property', {endpoint_type:ep_type,endpoint_id:ep_id,property_name:p_name,value:prop_val})">property(endpoint_type,endpoint_id,property,value)</button></li>
+        <li><button onclick="callbinder('audiohl','property', {endpoint_type:ep_type,endpoint_id:ep_id,property_name:p_name})">property(endpoint_type,endpoint_id,property)</button></li>
         <li><button onclick="callbinder('audiohl','get_endpoint_info', {endpoint_type:ep_type,endpoint_id:ep_id})">get_endpoint_info(endpoint_type,endpoint_id)</button></li>
         <li><button onclick="callbinder('audiohl','get_list_actions', {audio_role:ar})">get_list_actions(audio_role)</button></li>
         <li><button onclick="callbinder('audiohl','post_action', {action_name:'emergency_brake',audio_role:ar,media_name:'Warning.wav'})">post_action(emergency_brake,audio_role,'Warning.wav')</button></li>
-        <li><button onclick="callbinder('audiohl','subscribe', {events:['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action']})">subscribe(['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action'])</button>
-        <li><button onclick="callbinder('audiohl','unsubscribe', {events:['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action']})">unsubscribe(['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action'])</button></li>
+        <li><button onclick="callbinder('audiohl','event_subscription', {events:['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action'],subscribe:1})">subscribe(['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action'])</button>
+        <li><button onclick="callbinder('audiohl','event_subscription', {events:['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action'],subscribe:0})">unsubscribe(['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action'])</button></li>
     </ol>
 
     <div id="main" style="visibility:hidden">

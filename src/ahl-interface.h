@@ -35,11 +35,8 @@
 // Property/Volume/Action events
 #define AHL_ENDPOINT_PROPERTY_EVENT "ahl_endpoint_property_event"
 #define AHL_ENDPOINT_VOLUME_EVENT "ahl_endpoint_volume_event"
-#define AHL_ENDPOINT_INIT_EVENT "ahl_endpoint_init_event"
 #define AHL_POST_ACTION_EVENT "ahl_post_action"
 #define AHL_STREAM_STATE_EVENT "ahl_stream_state_event"
-#define AHL_ENDPOINT_INIT_EVENT "ahl_endpoint_init_event"
-
 
 // Stream state event types
 #define AHL_STREAM_EVENT_START "start"    // Stream is inactive

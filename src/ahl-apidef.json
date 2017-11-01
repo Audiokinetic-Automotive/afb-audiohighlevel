@@ -137,8 +137,8 @@
         }
     },    
     "paths": {
-        "/get_sources": {
-            "description": "Retrieve array of available audio sources",
+        "/get_endpoints": {
+            "description": "Retrieve array of available audio endpoints",
             "get": {
                 "parameters": [
                     {
@@ -146,30 +146,12 @@
                         "name": "audio_role",
                         "required": true,
                         "schema": { "type": "string" }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "$ref": "#/components/responses/200",
-                        "response": {
-                            "description": "Array of endpoint info structures",
-                            "type": "array",
-                            "items": { "$ref": "#/components/schemas/endpoint_info"}
-                        }
                     },
-                    "400": { "$ref": "#/components/responses/400" }
-                }
-            }
-        },
-        "/get_sinks": {
-            "description": "Retrieve array of available audio sinks",
-            "get": {
-                "parameters": [
                     {
                         "in": "query",
-                        "name": "audio_role",
+                        "name": "endpoint_type",
                         "required": true,
-                        "schema": { "type": "string" }
+                        "schema": { "type": "enum" }
                     }
                 ],
                 "responses": {
@@ -229,7 +211,7 @@
                     {
                         "in": "query",
                         "name": "stream_id",
-                        "required": true,
+                        "required": false,
                         "schema": { "type": "int" }
                     }
                 ],
@@ -240,7 +222,7 @@
             }
         },
         "/set_stream_state": {
-            "description": "Change stream active state",
+            "description": "Change stream active and/or mute state",
             "get": {
                 "x-permissions": {
                     "$ref": "#/components/x-permissions/streamcontrol"
@@ -249,39 +231,19 @@
                     {
                         "in": "query",
                         "name": "stream_id",
-                        "required": true,
+                        "required": false,
                         "schema": {"type": "int"}
                     },
                     {
                         "in": "query",
                         "name": "state",
-                        "required": true,
-                        "schema": {"type": "int"}
-                    }
-                ],
-                "responses": {
-                    "200": { "$ref": "#/components/responses/200" },
-                    "400": { "$ref": "#/components/responses/400" }
-                }
-            }
-        },
-        "/set_stream_mute": {
-            "description": "Change stream mute state",
-            "get": {
-                "x-permissions": {
-                    "$ref": "#/components/x-permissions/streamcontrol"
-                },
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "stream_id",
-                        "required": true,
+                        "required": false,
                         "schema": {"type": "int"}
                     },
                     {
                         "in": "query",
                         "name": "mute",
-                        "required": true,
+                        "required": false,
                         "schema": {"type": "int"}
                     }
                 ],
@@ -314,8 +276,8 @@
                 }
             }
         },
-        "/set_volume": {
-            "description": "Set volume on endpoint",
+        "/volume": {
+            "description": "Set or get volume on endpoint",
             "get": {
                 "x-permissions": { "$ref": "#/components/x-permissions/endpointcontrol" },
                 "parameters": [
@@ -334,41 +296,12 @@
                     {
                         "in": "query",
                         "name": "volume",
-                        "required": true,
+                        "required": false,
                         "schema": { "type": "string" }
                     }
                 ],
                 "responses": {
                     "200": { "$ref": "#/components/responses/200" },
-                    "400": { "$ref": "#/components/responses/400" }
-                }
-            }
-        },
-        "/get_volume": {
-            "description": "Get endpoint volume",
-            "get": {
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "endpoint_type",
-                        "required": true,
-                        "schema": { "type": "enum" }
-                    },
-                    {
-                        "in": "query",
-                        "name": "endpoint_id",
-                        "required": true,
-                        "schema": { "type": "int" }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "$ref": "#/components/responses/200",
-                        "response": {
-                            "description": "Endpoint volume value",
-                            "type": "double"
-                        }
-                    },
                     "400": { "$ref": "#/components/responses/400" }
                 }
             }
@@ -386,7 +319,7 @@
                     {
                         "in": "query",
                         "name": "endpoint_id",
-                        "required": false,
+                        "required": true,
                         "schema": { "type": "int" }
                     }
                 ],
@@ -396,8 +329,8 @@
                 }
             }
         },
-        "/set_property": {
-            "description": "Set endpoint property value",
+        "/property": {
+            "description": "Set/get endpoint property value",
             "get": {
                 "x-permissions": { "$ref": "#/components/x-permissions/endpointcontrol" },
                 "parameters": [
@@ -410,7 +343,7 @@
                     {
                         "in": "query",
                         "name": "endpoint_id",
-                        "required": false,
+                        "required": true,
                         "schema": { "type": "int" }
                     },
                     {
@@ -422,47 +355,12 @@
                     {
                         "in": "query",
                         "name": "value",
-                        "required": true,
+                        "required": false,
                         "schema": { "type": "string" }
                     }
                 ],
                 "responses": {
                     "200": { "$ref": "#/components/responses/200" },
-                    "400": { "$ref": "#/components/responses/400" }
-                }
-            }
-        },
-        "/get_property": {
-            "description": "Get endpoint property value",
-            "get": {
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "endpoint_type",
-                        "required": true,
-                        "schema": { "type": "enum" }
-                    },
-                    {
-                        "in": "query",
-                        "name": "endpoint_id",
-                        "required": false,
-                        "schema": { "type": "int" }
-                    },
-                    {
-                        "in": "query",
-                        "name": "property_name",
-                        "required": true,
-                        "schema": { "type": "string" }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "$ref": "#/components/responses/200",
-                        "response": {
-                            "description": "Property value",
-                            "type": "double"
-                        }
-                    },
                     "400": { "$ref": "#/components/responses/400" }
                 }
             }
@@ -520,7 +418,7 @@
                 }
             }
         },
-        "/subscribe": {
+        "/event_subscription": {
             "description": "Subscribe to audio high level events",
             "get": {
                 "parameters": [
@@ -531,28 +429,12 @@
                         "schema": { "type": "array",
                         "items": { "type": "string" }
                         }
-                    }
-                ],
-                "responses": {
-                    "200": { "$ref": "#/components/responses/200" },
-                    "400": { "$ref": "#/components/responses/400" }
-                }
-            }
-        },
-        "/unsubscribe": {
-            "description": "Unubscribe to audio high level events",
-            "get": {
-                "parameters": [
+                    },
                     {
                         "in": "query",
-                        "name": "events",
+                        "name": "subscribe",
                         "required": true,
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            }
-                        }
+                        "schema": { "type": "int" }
                     }
                 ],
                 "responses": {

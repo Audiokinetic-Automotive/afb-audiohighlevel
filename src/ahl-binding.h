@@ -28,7 +28,6 @@
 #include "ahl-interface.h"
 #include "ahl-policy-utils.h"
 
-
 #ifndef PUBLIC
   #define PUBLIC
 #endif
@@ -39,9 +38,36 @@
 #define AHL_ACCESS_CONTROL_GRANTED 1
 #define AHL_ACCESS_CONTROL_DENIED 0
 
-#define AHL_UNDEFINED -1
 #define AHL_STR_MAX_LENGTH 256
+ 
+typedef struct EndpointInfo
+{
+    endpointID_t    endpointID;         // Unique endpoint ID (per type)
+    EndpointTypeT   type;               // Source or sink device
+    char *          gsDeviceName;       // Unique device card name 
+    char *          gsDisplayName;      // Application display name
+    char *          gsDeviceURI;        // Associated URI 
+    char *          gsDeviceDomain;     // Device URI domain (e.g. alsa or pulse)
+    char *          pRoleName;          // Role assigned to this endpoint 
+    DeviceURITypeT  deviceURIType;      // Device URI type (includes audio domain information)
+    char *          gsHALAPIName;       // HAL associated with the device (for volume control)
+    AlsaDeviceInfoT alsaInfo;           // ALSA specific device information
+    AudioFormatT    format;             // Preferred audio format supported (later could be array of supported formats)
+    int             iVolume;            // Storage for current endpoint volume (policy effected). 
+    GHashTable *    pPropTable;         // Storage for array of properties (policy effected)         
+} EndpointInfoT;
 
+typedef struct StreamInfo {
+    streamID_t              streamID;           // Stream unique ID
+    EndpointInfoT *         pEndpointInfo;      // Associated endpoint information (reference)
+    StreamStateT            streamState;        // Stream activity state
+    StreamMuteT             streamMute;         // Stream mute state
+    struct afb_event        streamStateEvent;   // Stream specific event for stream state changes
+    EndpointSelectionModeT  endpointSelMode;    // Automatic (priority based) or manual endpoint selection
+    char *                  pRoleName;          // Role string identifier (from role config but could be programatically overriden later)
+    int                     iPriority;          // Role normalized priority (0-100) (from role config but could be programatically overriden later)
+    InterruptBehaviorT      eInterruptBehavior; // Role behavior when interrupting lower priority streams (from role config but could be programatically overriden later)
+} StreamInfoT;
 
 typedef struct RoleInfo {
     char *              pRoleName;          // Role string identifier

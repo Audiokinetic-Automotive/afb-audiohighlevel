@@ -22,12 +22,12 @@
 #include "ahl-apidef.h" // Generated from JSON OpenAPI
 #include "wrap-json.h"
 #include "ahl-policy.h"
+#include "ahl-policyJSON.h"
 #include "ahl-policy-utils.h"
 
 // Global high-level binding context
 AHLCtxT g_AHLCtx; 
 
-// TODO: Helpers that could be common
 static EndpointTypeT EndpointTypeToEnum(char * in_pEndpointTypeStr)
 {
     if (in_pEndpointTypeStr == NULL) {
@@ -76,108 +76,6 @@ static StreamMuteT StreamMuteToEnum(char * in_pStreamMuteStr)
         return STREAM_MUTE_MAXVALUE;
 }
 
-static char * DeviceURITypeEnumToStr(DeviceURITypeT in_eDeviceURIType) {
-    switch(in_eDeviceURIType) {
-        case DEVICEURITYPE_ALSA_HW:  // Alsa hardware device URI
-            return AHL_DEVICEURITYPE_ALSA_HW;
-        case DEVICEURITYPE_ALSA_DMIX:    // Alsa Dmix device URI (only for playback devices)
-            return AHL_DEVICEURITYPE_ALSA_DMIX;
-        case DEVICEURITYPE_ALSA_DSNOOP:  // Alsa DSnoop device URI (only for capture devices)
-            return AHL_DEVICEURITYPE_ALSA_DSNOOP;
-        case DEVICEURITYPE_ALSA_SOFTVOL: // Alsa softvol device URI
-            return AHL_DEVICEURITYPE_ALSA_SOFTVOL;
-        case DEVICEURITYPE_ALSA_PLUG:    // Alsa plug device URI
-            return AHL_DEVICEURITYPE_ALSA_PLUG;
-        case DEVICEURITYPE_ALSA_OTHER:   // Alsa domain URI device of unspecified type
-            return AHL_DEVICEURITYPE_ALSA_OTHER;
-        case DEVICEURITYPE_NOT_ALSA:     // Unknown (not ALSA domain)
-            return AHL_DEVICEURITYPE_NOT_ALSA;
-        default:
-            return "Unknown";
-    }
-}
-
-static char * StreamStateEnumToStr(StreamStateT in_eStreamState) {
-    switch(in_eStreamState) {
-        case STREAM_STATE_IDLE:
-            return AHL_STREAM_STATE_IDLE;
-        case STREAM_STATE_RUNNING: 
-            return AHL_STREAM_STATE_RUNNING;
-        case STREAM_STATE_PAUSED: 
-            return AHL_STREAM_STATE_PAUSED;
-        default:
-            return "Unknown";
-    }
-}
-
-static char * StreamMuteEnumToStr(StreamMuteT in_eStreamMute) {
-    switch(in_eStreamMute) {
-        case STREAM_UNMUTED: 
-            return AHL_STREAM_UNMUTED;
-        case STREAM_MUTED: 
-            return AHL_STREAM_MUTED;
-        default:
-            return "Unknown";
-    }
-}
-
-static void AudioFormatStructToJSON(json_object **audioFormatJ, AudioFormatT * pAudioFormat)
-{
-    wrap_json_pack(audioFormatJ, "{s:i,s:i,s:i}",
-                    "sample_rate", pAudioFormat->sampleRate, 
-                    "num_channels", pAudioFormat->numChannels, 
-                    "sample_type", pAudioFormat->sampleType);
-}
-
-// Package only information that can useful to application clients when selecting endpoint
-static void EndpointInfoStructToJSON(json_object **endpointInfoJ, EndpointInfoT * pEndpointInfo)
-{
-    json_object *formatInfoJ = NULL;
-    wrap_json_pack(endpointInfoJ, "{s:i,s:s,s:s,s:s,s:s,s:s,s:s}",
-                    "endpoint_id", pEndpointInfo->endpointID, 
-                    "endpoint_type", (pEndpointInfo->type == ENDPOINTTYPE_SOURCE) ? AHL_ENDPOINTTYPE_SOURCE : AHL_ENDPOINTTYPE_SINK,
-                    "device_name", pEndpointInfo->gsDeviceName, 
-                    "display_name", pEndpointInfo->gsDisplayName,
-                    "audio_role", pEndpointInfo->pRoleName,
-                    "device_domain",pEndpointInfo->gsDeviceDomain,
-                    "device_uri_type", DeviceURITypeEnumToStr(pEndpointInfo->deviceURIType));
-    AudioFormatStructToJSON(&formatInfoJ,&pEndpointInfo->format);
-    json_object_object_add(*endpointInfoJ,"format",formatInfoJ);
-
-    // Properties
-    if (pEndpointInfo->pPropTable) {
-        json_object *pPropTableJ = json_object_new_array();
-        
-        GHashTableIter iter;
-        gpointer key, value;
-        g_hash_table_iter_init (&iter, pEndpointInfo->pPropTable);
-        while (g_hash_table_iter_next (&iter, &key, &value))
-        {
-            if((key!=NULL) && (value!=NULL))
-            {
-                json_object *pPropertyJ = NULL;
-                json_object_get((json_object*)value); // Don't let the framework free our object when the request is done
-                wrap_json_pack(&pPropertyJ, "{s:s,s:o}","property_name", (char*)key, "property_value", (json_object*)value);
-                json_object_array_add(pPropTableJ, pPropertyJ);
-            }
-        }
-        json_object_object_add(*endpointInfoJ,"properties",pPropTableJ);
-    }
-}
- 
-// Package only information that can useful to application clients when opening a stream
-static void StreamInfoStructToJSON(json_object **streamInfoJ, StreamInfoT * pStreamInfo)
-{
-    json_object *endpointInfoJ = NULL;
-    EndpointInfoStructToJSON(&endpointInfoJ,pStreamInfo->pEndpointInfo);
-    wrap_json_pack(streamInfoJ, "{s:i,s:s,s:s,s:s}", 
-        "stream_id", pStreamInfo->streamID,
-        "state", StreamStateEnumToStr(pStreamInfo->streamState),
-        "mute", StreamMuteEnumToStr(pStreamInfo->streamMute),   
-        "device_uri",pStreamInfo->pEndpointInfo->gsDeviceURI); // Need to open a stream to have access to the device URI
-    json_object_object_add(*streamInfoJ,"endpoint_info",endpointInfoJ);
-}
-
 static streamID_t CreateNewStreamID()
 {
     streamID_t newID = g_AHLCtx.nextStreamID;
@@ -207,32 +105,6 @@ static EndpointInfoT * GetEndpointInfoWithRole(endpointID_t in_endpointID, Endpo
     }
 
     return pEndpointInfo;
-}
-
-static int ReplaceEndpointInfoWithRole(endpointID_t in_endpointID, EndpointTypeT in_endpointType, RoleInfoT * in_pRole, EndpointInfoT * in_pNewEndpoint)
-{
-    GPtrArray * pDeviceArray = NULL;
-    if (in_endpointType == ENDPOINTTYPE_SOURCE){
-        pDeviceArray = in_pRole->pSourceEndpoints;
-    }
-    else { 
-        pDeviceArray = in_pRole->pSinkEndpoints;
-    }
-    g_assert_nonnull(pDeviceArray);
-
-    for (int j = 0; j < pDeviceArray->len; j++) {
-        EndpointInfoT * pCurEndpointInfo = g_ptr_array_index(pDeviceArray,j);
-        g_assert_nonnull(pCurEndpointInfo);
-        if (pCurEndpointInfo->endpointID == in_endpointID) {            
-            g_ptr_array_insert(pDeviceArray,j,in_pNewEndpoint);
-            g_ptr_array_remove_index(pDeviceArray,j+1);
-            TermEndpointInfo(pCurEndpointInfo);
-            // GLib automatically frees item upon array removal
-            return AHL_SUCCESS;
-        }
-    }
-
-    return AHL_FAIL;
 }
 
 static EndpointInfoT * GetEndpointInfo(endpointID_t in_endpointID, EndpointTypeT in_endpointType)
@@ -267,6 +139,80 @@ static RoleInfoT * GetRole(char * in_pAudioRoleName)
     return g_hash_table_lookup(g_AHLCtx.policyCtx.pRoleInfo,in_pAudioRoleName);
 }
 
+static int CloseStream(AHLClientCtxT * in_pClientCtx, streamID_t streamID,struct afb_req * pReq) {
+    // Call policy to verify whether creating a new audio stream is allowed in current context and possibly take other actions
+    StreamInfoT * pStreamInfo = GetStream(streamID);
+    if (pStreamInfo == NULL) {
+        AFB_ERROR("Specified stream not currently active stream_id -> %d",streamID);
+        return AHL_FAIL;
+    }
+
+#ifndef AHL_DISCONNECT_POLICY             
+    json_object *pPolicyStreamJ = NULL;
+    int err = StreamInfoToJSON(pStreamInfo, &pPolicyStreamJ);
+    if (err == AHL_POLICY_UTIL_FAIL)
+    {
+        AFB_ERROR("Audio policy violation, Unable to get JSON object for Policy_CloseStream");
+        return AHL_FAIL;
+    } 
+    int policyAllowed = Policy_CloseStream(pPolicyStreamJ);
+    if (policyAllowed == AHL_POLICY_REJECT)
+    {
+        AFB_ERROR("Close stream not allowed in current context");
+        return AHL_FAIL;
+    }
+#endif
+    // Unsubscribe client from stream events
+    if (pReq != NULL) {
+        char streamEventName[128];
+        snprintf(streamEventName,128,"ahl_streamstate_%d",streamID);
+        int iValid = afb_event_is_valid(pStreamInfo->streamStateEvent);
+        if (iValid) {
+            err = afb_req_unsubscribe(*pReq,pStreamInfo->streamStateEvent);
+            if (err) {
+                AFB_ERROR("Could not unsubscribe to stream specific state change event");
+                return AHL_FAIL;
+            }
+        }
+    }
+    
+    // Remove from stream list (if present)
+    if (g_AHLCtx.policyCtx.pStreams)
+        g_hash_table_remove(g_AHLCtx.policyCtx.pStreams,GINT_TO_POINTER(&pStreamInfo->streamID));
+    free(pStreamInfo);
+    pStreamInfo = NULL;
+
+    // Find index for cases where there are multiple streams per client
+    // Remove from client context stream ID and endpoint ID access rights
+    if (in_pClientCtx->pStreamAccessList) {
+        for (int i = 0; i < in_pClientCtx->pStreamAccessList->len ; i++) {
+            streamID_t iID = g_array_index(in_pClientCtx->pStreamAccessList,streamID_t,i);
+            if (iID == streamID) {
+                g_array_remove_index(in_pClientCtx->pStreamAccessList, i);
+            }    
+        }
+    }
+
+    return AHL_SUCCESS;
+}
+
+static int CloseAllClientStreams(AHLClientCtxT * in_pClientCtx, struct afb_req * pReq)
+{
+    g_assert_nonnull(in_pClientCtx);
+    if (in_pClientCtx->pStreamAccessList != NULL) {
+        while( in_pClientCtx->pStreamAccessList->len )
+        {
+            streamID_t streamID = g_array_index(in_pClientCtx->pStreamAccessList,streamID_t,0);
+            int err = CloseStream(in_pClientCtx,streamID,pReq);
+            if (err) {
+                return err;
+            }
+        }      
+    }
+
+    return AHL_SUCCESS;
+}
+
 static AHLClientCtxT * AllocateClientContext()
 {
     AHLClientCtxT * pClientCtx = malloc(sizeof(AHLClientCtxT));
@@ -278,35 +224,13 @@ static void TerminateClientContext(void * ptr)
 {
     AHLClientCtxT * pClientCtx = (AHLClientCtxT *) ptr;
     if (pClientCtx != NULL) {
-
-        // Avoid having policy in bad state if client loses WS connection (e.g. app termination without close stream)
-        // Force close streams in those cases.
- 
-        if (pClientCtx->pStreamAccessList != NULL) {
-#ifndef AHL_DISCONNECT_POLICY 
-            for (int i = 0; i < pClientCtx->pStreamAccessList->len; i++)
-            {
-                streamID_t streamID = g_array_index(pClientCtx->pStreamAccessList,streamID_t,i);
-                // Call policy to verify whether creating a new audio stream is allowed in current context and possibly take other actions
-                StreamInfoT * pStreamInfo = GetStream(streamID);
-                if (pStreamInfo == NULL) {
-                    AFB_ERROR("Specified stream not currently active stream_id -> %d",streamID);
-                    return;
-                }
-                
-                json_object *pPolicyStreamJ = NULL;
-                int err = PolicyStreamStructToJSON(pStreamInfo, &pPolicyStreamJ);
-                if (err == AHL_POLICY_UTIL_FAIL)
-                {
-                    AFB_ERROR("Audio policy violation, Unable to get JSON object for Policy_CloseStream");
-                    return;
-                } 
-                Policy_CloseStream(pPolicyStreamJ);
-            }  
-#endif
+        CloseAllClientStreams(pClientCtx,NULL);
+        
+        if (pClientCtx->pStreamAccessList) {
             g_array_free( pClientCtx->pStreamAccessList, TRUE);
             pClientCtx->pStreamAccessList = NULL;
         }
+
         free(pClientCtx);
     }
 }
@@ -441,8 +365,8 @@ PUBLIC int AhlBindingInit()
     // Register exit function
     atexit(AhlBindingTerm);
 
-    //Create AGL Events
-    err=CreateEvents();
+    // Create AGL Events
+    err = CreateEvents();
     if(err)
     {
         //Error messages already reported inside CreateEvents
@@ -479,50 +403,62 @@ PUBLIC int AhlBindingInit()
             for (int j = 0; j < pRoleInfo->pSourceEndpoints->len; j++) {
                 EndpointInfoT * pCurEndpointInfo = g_ptr_array_index(pRoleInfo->pSourceEndpoints,j);
                 g_assert_nonnull(pCurEndpointInfo);
-                json_object *pPolicyEndpointJ = NULL;
-                err = PolicyEndpointStructToJSON(pCurEndpointInfo, &pPolicyEndpointJ);
-                if (err == AHL_POLICY_UTIL_FAIL)
-                {
+                json_object *pInPolicyEndpointJ = NULL;                       
+                err = EndpointInfoToJSON(pCurEndpointInfo, &pInPolicyEndpointJ);
+                if (err) {
                     AFB_ERROR("Unable to Create Endpoint Json object error:%s ",wrap_json_get_error_string(err));
-                    return err;    
+                    return AHL_FAIL;    
                 }
                 else
                 {
-                    err = Policy_Endpoint_Init(pPolicyEndpointJ);
+                    json_object * pOutPolicyEndpointJ = NULL; 
+                    err = Policy_Endpoint_Init(pInPolicyEndpointJ,&pOutPolicyEndpointJ);
                     if (err == AHL_POLICY_REJECT) {
-                        AFB_ERROR("Policy endpoint properties initalization failed for endpoint_id :%d type:%d",pCurEndpointInfo->endpointID, pCurEndpointInfo->type);
-                    }                    
-                    //free pPolicyEndpointJ
-                    json_object_put(pPolicyEndpointJ);
-                }                                 
+                        AFB_WARNING("Policy endpoint properties initalization failed for endpoint_id :%d type:%d",pCurEndpointInfo->endpointID, pCurEndpointInfo->type);                        
+                    }   
+                    json_object_put(pInPolicyEndpointJ);                 
+                    
+                    err = UpdateEndpointInfo(pCurEndpointInfo,pOutPolicyEndpointJ);
+                    if (err) {
+                        AFB_ERROR("Policy endpoint properties update failed for endpoint_id :%d type:%d",pCurEndpointInfo->endpointID, pCurEndpointInfo->type);                        
+                        return AHL_FAIL;
+                    }
+                    //json_object_put(pOutPolicyEndpointJ);  
+                }
             }
         }
+
         if (pRoleInfo->pSinkEndpoints){
             // for all sink endpoints
             for (int j = 0; j < pRoleInfo->pSinkEndpoints->len; j++) {
                 EndpointInfoT * pCurEndpointInfo = g_ptr_array_index(pRoleInfo->pSinkEndpoints,j);
                 g_assert_nonnull(pCurEndpointInfo);
-                json_object *pPolicyEndpointJ = NULL;
-                err = PolicyEndpointStructToJSON(pCurEndpointInfo, &pPolicyEndpointJ);
-                if (err == AHL_POLICY_UTIL_FAIL)
-                {
+                json_object *pInPolicyEndpointJ = NULL;      
+                err = EndpointInfoToJSON(pCurEndpointInfo, &pInPolicyEndpointJ);
+                if (err) {
                     AFB_ERROR("Unable to Create Endpoint Json object error:%s ",wrap_json_get_error_string(err));
-                    return err;
+                    return AHL_FAIL;
                 }
                 else
                 {
-                    err = Policy_Endpoint_Init(pPolicyEndpointJ);
-                    if (err== AHL_POLICY_REJECT) {
-                        AFB_ERROR("Policy endpoint properties initalization failed for endpoint_id :%d type:%d",pCurEndpointInfo->endpointID, pCurEndpointInfo->type);                        
+                    json_object *pOutPolicyEndpointJ = NULL;  
+                    err = Policy_Endpoint_Init(pInPolicyEndpointJ,&pOutPolicyEndpointJ);
+                    if (err == AHL_POLICY_REJECT) {
+                        AFB_WARNING("Policy endpoint properties initalization failed for endpoint_id :%d type:%d",pCurEndpointInfo->endpointID, pCurEndpointInfo->type);                        
+                        //return AHL_FAIL;
                     }
-                    //free pPolicyEndpointJ
-                    json_object_put(pPolicyEndpointJ);
-                } 
-
+                    json_object_put(pInPolicyEndpointJ);
+                    err = UpdateEndpointInfo(pCurEndpointInfo,pOutPolicyEndpointJ);
+                    if (err) {
+                        AFB_ERROR("Policy endpoint properties update failed for endpoint_id :%d type:%d",pCurEndpointInfo->endpointID, pCurEndpointInfo->type);                        
+                        return AHL_FAIL;
+                    }
+                    //json_object_put(pOutPolicyEndpointJ);  
+                }
             }
         }
     }    
-#endif   
+#endif // AHL_DISCONNECT_POLICY
 
     // Initialize list of active streams
     g_AHLCtx.policyCtx.pStreams = g_hash_table_new(g_int_hash, g_int_equal);
@@ -531,8 +467,6 @@ PUBLIC int AhlBindingInit()
         AFB_ERROR("Unable to create Active Stream List");
         return err;
     }
-
-    // TODO: Use AGL persistence framework to retrieve and set initial volumes/properties
 
     AFB_DEBUG("Audio high-level Binding success");
     return err;
@@ -550,21 +484,22 @@ PUBLIC void AhlOnEvent(const char *evtname, json_object *eventJ)
 #endif
 }
 
-PUBLIC void audiohlapi_get_sources(struct afb_req req)
+PUBLIC void audiohlapi_get_endpoints(struct afb_req req)
 {
     json_object *devicesJ = NULL;
     json_object *deviceJ = NULL;
     json_object *queryJ = NULL;
     char * audioRole = NULL;
+    char * pEndpointTypeStr = NULL;
+    EndpointTypeT endpointType = ENDPOINTTYPE_MAXVALUE;
 
     queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:s}", "audio_role", &audioRole);
+    int err = wrap_json_unpack(queryJ, "{s:s,s:s}", "audio_role", &audioRole,"endpoint_type",&pEndpointTypeStr);
     if (err) {
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
         return;
     }
-
-    AFB_DEBUG("Filtering devices according to specified audio role=%s", audioRole);
+    endpointType = EndpointTypeToEnum(pEndpointTypeStr);
 
     RoleInfoT * pRole = GetRole(audioRole);
     if ( pRole == NULL )
@@ -575,61 +510,25 @@ PUBLIC void audiohlapi_get_sources(struct afb_req req)
     else
     {
         devicesJ = json_object_new_array();
-        GPtrArray * pDeviceArray = pRole->pSourceEndpoints;
+        GPtrArray * pDeviceArray = NULL;
+        if (endpointType == ENDPOINTTYPE_SOURCE)
+            pDeviceArray = pRole->pSourceEndpoints;
+        else
+            pDeviceArray = pRole->pSinkEndpoints;
         if (pDeviceArray) {
             int iNumberDevices = pDeviceArray->len;
             for ( int j = 0 ; j < iNumberDevices; j++)
             {
                 EndpointInfoT * pEndpointInfo = g_ptr_array_index(pDeviceArray,j);
                 if (pEndpointInfo) {
-                    EndpointInfoStructToJSON(&deviceJ, pEndpointInfo);
+                    JSONPublicPackageEndpoint(pEndpointInfo,&deviceJ);
                     json_object_array_add(devicesJ, deviceJ);
                 }
             }
         }
     } 
 
-    afb_req_success(req, devicesJ, "List of sources");
-}
-
-PUBLIC void audiohlapi_get_sinks(struct afb_req req)
-{
-    json_object *devicesJ = NULL;
-    json_object *deviceJ = NULL;
-    json_object *queryJ = NULL;
-    char * audioRole = NULL;
-
-    queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:s}", "audio_role", &audioRole);
-    if (err) {
-        afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
-        return;
-    }
-
-    AFB_DEBUG("Filtering devices according to specified audio role=%s", audioRole);
-
-    RoleInfoT * pRole = GetRole(audioRole);
-    if ( pRole == NULL )
-    {
-        afb_req_fail_f(req, "Invalid arguments", "Requested audio role does not exist in current configuration -> %s", json_object_get_string(queryJ));
-        return;
-    }
-    else
-    {
-        devicesJ = json_object_new_array();
-        GPtrArray * pDeviceArray = pRole->pSinkEndpoints;
-        if (pDeviceArray) {
-            int iNumberDevices = pDeviceArray->len;
-            for ( int j = 0 ; j < iNumberDevices; j++)
-            {
-                EndpointInfoT * pEndpointInfo = g_ptr_array_index(pDeviceArray,j);
-                EndpointInfoStructToJSON(&deviceJ, pEndpointInfo);
-                json_object_array_add(devicesJ, deviceJ);
-            }
-        }
-    } 
-
-    afb_req_success(req, devicesJ, "List of sinks");
+    afb_req_success(req, devicesJ, "List of endpoints");
 }
 
 PUBLIC void audiohlapi_stream_open(struct afb_req req)
@@ -650,7 +549,6 @@ PUBLIC void audiohlapi_stream_open(struct afb_req req)
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
         return;
     }
-    AFB_DEBUG("Parsed input arguments = audio_role:%s endpoint_type:%s endpoint_id:%d", audioRole,endpointTypeStr,endpointID);
     endpointType = EndpointTypeToEnum(endpointTypeStr);
 
     // Check if there is already an existing context for this client
@@ -699,7 +597,6 @@ PUBLIC void audiohlapi_stream_open(struct afb_req req)
             }
             pEndpointInfo = NULL;
         }
-
     }
 
     if (pEndpointInfo == NULL) {
@@ -724,8 +621,8 @@ PUBLIC void audiohlapi_stream_open(struct afb_req req)
 #ifndef AHL_DISCONNECT_POLICY  
     // Call policy to verify whether creating a new audio stream is allowed in current context and possibly take other actions
     json_object *pPolicyStreamJ = NULL;
-    err = PolicyStreamStructToJSON(pStreamInfo, &pPolicyStreamJ);
-    if (err == AHL_POLICY_UTIL_FAIL)
+    err = StreamInfoToJSON(pStreamInfo,&pPolicyStreamJ);
+    if (err)
     {
         afb_req_fail(req, "Audio policy violation", "Unable to get JSON object for Policy_OpenStream");
         return;
@@ -762,7 +659,7 @@ PUBLIC void audiohlapi_stream_open(struct afb_req req)
     if (g_AHLCtx.policyCtx.pStreams)
         g_hash_table_insert( g_AHLCtx.policyCtx.pStreams, GINT_TO_POINTER(&pStreamInfo->streamID), pStreamInfo );
 
-    StreamInfoStructToJSON(&streamInfoJ,pStreamInfo);
+    JSONPublicPackageStream(pStreamInfo,&streamInfoJ);
 
     afb_req_success(req, streamInfoJ, "Stream info structure");
 }
@@ -773,17 +670,9 @@ PUBLIC void audiohlapi_stream_close(struct afb_req req)
     streamID_t streamID = AHL_UNDEFINED;
     
     queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:i}", "stream_id", &streamID);
+    int err = wrap_json_unpack(queryJ, "{s?i}", "stream_id", &streamID);
     if (err) {
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
-        return;
-    }
-    AFB_DEBUG("Parsed input arguments = stream_id:%d", streamID);
-
-    
-    StreamInfoT * pStreamInfo = GetStream(streamID);
-    if (pStreamInfo == NULL) {
-        afb_req_fail_f(req, "Stream not found", "Specified stream not currently active stream_id -> %d",streamID);
         return;
     }
 
@@ -795,66 +684,93 @@ PUBLIC void audiohlapi_stream_close(struct afb_req req)
         return;
     }
 
-    // Verify that this client can control the stream
-    int iStreamAccessControl = CheckStreamAccessControl( pClientCtx, streamID );
-    if (iStreamAccessControl == AHL_ACCESS_CONTROL_DENIED)
-    {
-        afb_req_fail(req, "Access control denied", "Close stream not allowed in current client context");
-        return;
-    }
-
-#ifndef AHL_DISCONNECT_POLICY  
-    json_object *pPolicyStreamJ = NULL;
-    err = PolicyStreamStructToJSON(pStreamInfo, &pPolicyStreamJ);
-    if (err == AHL_POLICY_UTIL_FAIL)
-    {
-        afb_req_fail(req, "Audio policy violation", "Unable to get JSON object for Policy_CloseStream");
-        return;
-    } 
-    // Call policy to verify whether creating a new audio stream is allowed in current context and possibly take other actions
-    int policyAllowed = Policy_CloseStream(pPolicyStreamJ);
-    if (policyAllowed == AHL_POLICY_REJECT)
-    {
-        afb_req_fail(req, "Audio policy violation", "Close stream not allowed in current context");
-        return;
-    }
-#endif
-
-    // Unsubscribe client from stream events
-    char streamEventName[128];
-    snprintf(streamEventName,128,"ahl_streamstate_%d",streamID);
-    int iValid = afb_event_is_valid(pStreamInfo->streamStateEvent);
-    if (iValid) {
-        err = afb_req_unsubscribe(req,pStreamInfo->streamStateEvent);
+    if (streamID == AHL_UNDEFINED) {
+        err = CloseAllClientStreams(pClientCtx,&req);
         if (err) {
-            afb_req_fail(req, "Stream event subscription failure", "Could not unsubscribe to stream specific state change event");
+            afb_req_fail(req, "Error closing streams", "Streams cannot close");
             return;
         }
     }
-
-    // Remove from stream list (if present)
-    if (g_AHLCtx.policyCtx.pStreams)
-        g_hash_table_remove(g_AHLCtx.policyCtx.pStreams,GINT_TO_POINTER(&pStreamInfo->streamID));
-    free(pStreamInfo);
-    pStreamInfo = NULL;
-
-    // Find index for cases where there are multiple streams per client
-    // Remove from client context stream ID and endpoint ID access rights
-    if (pClientCtx->pStreamAccessList) {
-        for (int i = 0; i < pClientCtx->pStreamAccessList->len ; i++) {
-            streamID_t iID = g_array_index(pClientCtx->pStreamAccessList,streamID_t,i);
-            if (iID == streamID) {
-                g_array_remove_index(pClientCtx->pStreamAccessList, i);
-            }    
-        }
-
-        if (pClientCtx->pStreamAccessList->len == 0) {
-            // If no more streams/endpoints owner, clear session
-            afb_req_context_clear(req);
+    else {
+        err = CloseStream(pClientCtx,streamID,&req);
+        if (err) {
+            afb_req_fail_f(req, "Error closing stream", "Specified stream cannot close stream_id -> %d",streamID);
+            return;
         }
     }
-
+    
     afb_req_success(req, NULL, "Stream close completed");
+}
+
+static int SetStreamState(AHLClientCtxT * in_pClientCtx,struct afb_req * pReq, streamID_t streamID, char * pStreamStateStr, char * pMuteStr) {
+
+    StreamInfoT * pStreamInfo = GetStream(streamID);
+    if (pStreamInfo == NULL) {
+        afb_req_fail_f(*pReq, "Stream not found", "Specified stream not found stream_id -> %d",streamID);
+        return AHL_FAIL;
+    }
+
+    // Verify that this client can control the stream
+    int iStreamAccessControl = CheckStreamAccessControl( in_pClientCtx, streamID );
+    if (iStreamAccessControl == AHL_ACCESS_CONTROL_DENIED)
+    {
+        afb_req_fail(*pReq, "Access control denied", "Set stream state not allowed in current client context");
+        return AHL_FAIL;
+    }
+
+    if (pStreamStateStr != NULL) {
+        StreamStateT streamState = StreamStateToEnum(pStreamStateStr);
+#ifndef AHL_DISCONNECT_POLICY  
+        json_object *pPolicyStreamJ = NULL;
+        int err = StreamInfoToJSON(pStreamInfo, &pPolicyStreamJ);
+        if (err == AHL_POLICY_UTIL_FAIL)
+        {
+            afb_req_fail(*pReq, "Audio policy violation", "Unable to get JSON object for Policy_SetStreamState");
+            return AHL_FAIL;
+        } 
+    
+        json_object *paramJ= json_object_new_int(streamState);
+        json_object_object_add(pPolicyStreamJ, "arg_stream_state", paramJ);
+    
+        int policyAllowed = Policy_SetStreamState(pPolicyStreamJ);    
+        if (policyAllowed == AHL_POLICY_REJECT)
+        {
+            afb_req_fail(*pReq, "Audio policy violation", "Change stream state not allowed in current context");
+            return AHL_FAIL; 
+        }
+#else
+        // Simulate that policy returns target state (accepted)
+        pStreamInfo->streamState = streamState;
+#endif
+    }
+
+    if (pMuteStr != NULL) {
+        StreamMuteT muteState = StreamMuteToEnum(pMuteStr);
+#ifndef AHL_DISCONNECT_POLICY 
+        json_object *pPolicyStreamJ = NULL;
+        int err = StreamInfoToJSON(pStreamInfo, &pPolicyStreamJ);
+        if (err == AHL_POLICY_UTIL_FAIL)
+        {
+            afb_req_fail((*pReq), "Audio policy violation", "Unable to get JSON object for Policy_SetStreamMute");
+            return AHL_FAIL;
+        } 
+
+        json_object *paramJ= json_object_new_int(muteState);
+        json_object_object_add(pPolicyStreamJ, "mute_state", paramJ);
+
+        int policyAllowed = Policy_SetStreamMute(pPolicyStreamJ);    
+        if (policyAllowed == AHL_POLICY_REJECT)
+        {
+            afb_req_fail(*pReq, "Audio policy violation", "Mute stream not allowed in current context");
+            return AHL_FAIL;
+        }
+#else
+        // Simulate that policy returns target state (accepted)
+        pStreamInfo->streamMute = muteState;
+#endif
+    }
+
+    return AHL_SUCCESS;
 }
 
  PUBLIC void audiohlapi_set_stream_state(struct afb_req req)
@@ -862,81 +778,12 @@ PUBLIC void audiohlapi_stream_close(struct afb_req req)
     json_object *queryJ = NULL;
     streamID_t streamID = AHL_UNDEFINED;
     char * streamStateStr = NULL;
-    
-    queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:i,s:s}", "stream_id", &streamID,"state",&streamStateStr);
-    if (err) {
-        afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
-        return;
-    }
-    AFB_DEBUG("Parsed input arguments = stream_id:%d, state:%s", streamID,streamStateStr);
-    
-    StreamInfoT * pStreamInfo = GetStream(streamID);
-    if (pStreamInfo == NULL) {
-        afb_req_fail_f(req, "Stream not found", "Specified stream not found stream_id -> %d",streamID);
-        return;
-    }
-
-    // Check if there is already an existing context for this client
-    AHLClientCtxT * pClientCtx = afb_req_context_get(req); // Retrieve client-specific data structure
-    if (pClientCtx == NULL)
-    {
-        afb_req_fail(req, "Bad state", "No client context associated with the request (is there an opened stream by this client?)");
-        return;
-    }
-
-    // Verify that this client can control the stream
-    int iStreamAccessControl = CheckStreamAccessControl( pClientCtx, streamID );
-    if (iStreamAccessControl == AHL_ACCESS_CONTROL_DENIED)
-    {
-        afb_req_fail(req, "Access control denied", "Set stream state not allowed in current client context");
-        return;
-    }
-
-    StreamStateT streamState = StreamStateToEnum(streamStateStr);
-#ifndef AHL_DISCONNECT_POLICY  
-    json_object *pPolicyStreamJ = NULL;
-    err = PolicyStreamStructToJSON(pStreamInfo, &pPolicyStreamJ);
-    if (err == AHL_POLICY_UTIL_FAIL)
-    {
-        afb_req_fail(req, "Audio policy violation", "Unable to get JSON object for Policy_SetStreamState");
-        return;
-    } 
-
-    json_object *paramJ= json_object_new_int(streamState);
-    json_object_object_add(pPolicyStreamJ, "arg_stream_state", paramJ);
-
-    int policyAllowed = Policy_SetStreamState(pPolicyStreamJ);    
-    if (policyAllowed == AHL_POLICY_REJECT)
-    {
-        afb_req_fail(req, "Audio policy violation", "Change stream state not allowed in current context");
-        return; 
-    }
-#else
-    // Simulate that policy returns target state (accepted)
-    pStreamInfo->streamState = streamState;
-#endif
-
-    afb_req_success(req, NULL, "Set stream state");
- }
-
- PUBLIC void audiohlapi_set_stream_mute(struct afb_req req)
- {
-    json_object *queryJ = NULL;
-    streamID_t streamID = AHL_UNDEFINED;
     char * pMuteStr = NULL;
     
     queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:i,s:s}", "stream_id", &streamID,"mute",&pMuteStr);
+    int err = wrap_json_unpack(queryJ, "{s?i,s?s,s?s}", "stream_id", &streamID,"state",&streamStateStr,"mute",&pMuteStr);
     if (err) {
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
-        return;
-    }
-    AFB_DEBUG("Parsed input arguments = stream_id:%d, mute:%s", streamID,pMuteStr);
-
-    StreamInfoT * pStreamInfo = GetStream(streamID);
-    if (pStreamInfo == NULL) {
-        afb_req_fail_f(req, "Stream not found", "Specified stream not currently active stream_id -> %d",streamID);
         return;
     }
 
@@ -948,40 +795,27 @@ PUBLIC void audiohlapi_stream_close(struct afb_req req)
         return;
     }
 
-    // Verify that this client can control the stream
-    int iStreamAccessControl = CheckStreamAccessControl( pClientCtx, streamID );
-    if (iStreamAccessControl == AHL_ACCESS_CONTROL_DENIED)
-    {
-        afb_req_fail(req, "Access control denied", "Set stream mute state not allowed in current client context");
-        return;
+    if (streamID == AHL_UNDEFINED) {
+        // All stream for this client
+        if (pClientCtx->pStreamAccessList != NULL) {
+            for (int i = 0; i < pClientCtx->pStreamAccessList->len; i++)
+            {
+                streamID_t curStreamID = g_array_index(pClientCtx->pStreamAccessList,streamID_t,i);
+                err = SetStreamState(pClientCtx,&req,curStreamID,streamStateStr,pMuteStr);
+                if (err) {
+                    return;
+                }
+            }      
+        }
+    }
+    else {
+        err = SetStreamState(pClientCtx,&req,streamID,streamStateStr,pMuteStr);
+        if (err) {
+            return;
+        }
     }
 
-
-    StreamMuteT muteState = StreamMuteToEnum(pMuteStr);
-#ifndef AHL_DISCONNECT_POLICY 
-    json_object *pPolicyStreamJ = NULL;
-    err = PolicyStreamStructToJSON(pStreamInfo, &pPolicyStreamJ);
-    if (err == AHL_POLICY_UTIL_FAIL)
-    {
-        afb_req_fail(req, "Audio policy violation", "Unable to get JSON object for Policy_SetStreamMute");
-        return;
-    } 
-
-    json_object *paramJ= json_object_new_int(muteState);
-    json_object_object_add(pPolicyStreamJ, "mute_state", paramJ);
-
-    int policyAllowed = Policy_SetStreamMute(pPolicyStreamJ);    
-    if (policyAllowed == AHL_POLICY_REJECT)
-    {
-        afb_req_fail(req, "Audio policy violation", "Mute stream not allowed in current context");
-        return;
-    }
-#else
-    // Simulate that policy returns target state (accepted)
-    pStreamInfo->streamMute = muteState;
-#endif
-
-    afb_req_success(req, NULL, "Set stream mute completed");
+    afb_req_success(req, NULL, "Set stream state");
  }
 
  PUBLIC void audiohlapi_get_stream_info(struct afb_req req)
@@ -996,7 +830,6 @@ PUBLIC void audiohlapi_stream_close(struct afb_req req)
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
         return;
     }
-    AFB_DEBUG("Parsed input arguments = stream_id:%d", streamID);
 
     StreamInfoT * pStreamInfo = GetStream(streamID);
     if (pStreamInfo == NULL) {
@@ -1004,12 +837,12 @@ PUBLIC void audiohlapi_stream_close(struct afb_req req)
         return;
     }
 
-    StreamInfoStructToJSON(&streamInfoJ,pStreamInfo);
+    JSONPublicPackageStream(pStreamInfo,&streamInfoJ);
 
     afb_req_success(req, streamInfoJ, "Get stream info completed");
  }
 
-PUBLIC void audiohlapi_set_volume(struct afb_req req)
+PUBLIC void audiohlapi_volume(struct afb_req req)
 {
     json_object *queryJ = NULL;
     endpointID_t endpointID = AHL_UNDEFINED;
@@ -1018,12 +851,11 @@ PUBLIC void audiohlapi_set_volume(struct afb_req req)
     char * volumeStr = NULL;
     
     queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:s,s:i,s:s}", "endpoint_type", &pEndpointTypeStr,"endpoint_id",&endpointID,"volume",&volumeStr);
+    int err = wrap_json_unpack(queryJ, "{s:s,s:i,s?s}", "endpoint_type", &pEndpointTypeStr,"endpoint_id",&endpointID,"volume",&volumeStr);
     if (err) {
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
         return;
     }
-    AFB_DEBUG("Parsed input arguments = endpoint_type:%s endpoint_id:%d volume:%s", pEndpointTypeStr,endpointID,volumeStr);
     endpointType = EndpointTypeToEnum(pEndpointTypeStr);
 
     EndpointInfoT * pEndpointInfo = GetEndpointInfo(endpointID,endpointType);
@@ -1033,62 +865,36 @@ PUBLIC void audiohlapi_set_volume(struct afb_req req)
         return;
     }
 
+    if (volumeStr != NULL) {
 #ifndef AHL_DISCONNECT_POLICY
-    json_object *pPolicyEndpointJ = NULL;
-    err = PolicyEndpointStructToJSON(pEndpointInfo, &pPolicyEndpointJ);
-    if (err == AHL_POLICY_UTIL_FAIL)
-    {
-        afb_req_fail(req, "Audio policy violation", "Unable to get JSON object for Policy_SetVolume");
-        return;
-    } 
+        json_object *pPolicyEndpointJ = NULL;
+        err = EndpointInfoToJSON(pEndpointInfo, &pPolicyEndpointJ);
+        if (err == AHL_POLICY_UTIL_FAIL)
+        {
+            afb_req_fail(req, "Audio policy violation", "Unable to get JSON object for Policy_SetVolume");
+            return;
+        } 
 
-    json_object *paramJ= json_object_new_string(volumeStr);
-    json_object_object_add(pPolicyEndpointJ, "arg_volume", paramJ);
+        json_object *paramJ= json_object_new_string(volumeStr);
+        json_object_object_add(pPolicyEndpointJ, "arg_volume", paramJ);
 
-    int policyAllowed = Policy_SetVolume(pPolicyEndpointJ);
-    if (!policyAllowed)
-    {
-        afb_req_fail(req, "Audio policy violation", "Set volume not allowed in current context");
-        return;
-    }
+        int policyAllowed = Policy_SetVolume(pPolicyEndpointJ);
+        if (!policyAllowed)
+        {
+            afb_req_fail(req, "Audio policy violation", "Set volume not allowed in current context");
+            return;
+        }
 #else
-    // Simulate that policy returns target state (accepted)
-    pEndpointInfo->iVolume = atoi(volumeStr);
+        // Simulate that policy returns target state (accepted)
+        pEndpointInfo->iVolume = atoi(volumeStr);
 #endif
+    }
+
+    json_object * volumeJ = json_object_new_int(pEndpointInfo->iVolume);
  
-    afb_req_success(req, NULL, "Set volume completed");
+    afb_req_success(req, volumeJ, "Set/get volume completed");
 }
 
-PUBLIC void audiohlapi_get_volume(struct afb_req req)
-{
-    json_object *queryJ = NULL;
-    endpointID_t endpointID = AHL_UNDEFINED;
-    char * pEndpointTypeStr = NULL;
-    EndpointTypeT endpointType = ENDPOINTTYPE_MAXVALUE;
-    json_object * volumeJ = NULL;
-    
-    queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:s,s:i}", "endpoint_type", &pEndpointTypeStr,"endpoint_id",&endpointID);
-    if (err) {
-        afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
-        return;
-    }
-    AFB_DEBUG("Parsed input arguments = endpoint_type:%s endpoint_id:%d", pEndpointTypeStr,endpointID);
-    endpointType = EndpointTypeToEnum(pEndpointTypeStr);
-
-    EndpointInfoT * pEndpointInfo = GetEndpointInfo(endpointID,endpointType);
-    if (pEndpointInfo == NULL)
-    {
-        afb_req_fail_f(req, "Endpoint not found", "Endpoint information not found for id:%d type%d",endpointID,endpointType);
-        return;
-    }
-
-    volumeJ = json_object_new_int(pEndpointInfo->iVolume);
-
-    afb_req_success(req, volumeJ, "Retrieved volume value");
-}
-
-// Properties 
 PUBLIC void audiohlapi_get_endpoint_info(struct afb_req req)
 {
     json_object *queryJ = NULL;
@@ -1102,7 +908,6 @@ PUBLIC void audiohlapi_get_endpoint_info(struct afb_req req)
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
         return;
     }
-    AFB_DEBUG("Parsed input arguments = endpoint_type:%s endpoint_id:%d", pEndpointTypeStr,endpointID);
     endpointType = EndpointTypeToEnum(pEndpointTypeStr);
 
     EndpointInfoT * pEndpointInfo = GetEndpointInfo(endpointID,endpointType);
@@ -1113,12 +918,12 @@ PUBLIC void audiohlapi_get_endpoint_info(struct afb_req req)
     }
 
     json_object *endpointInfoJ = NULL;
-    EndpointInfoStructToJSON(&endpointInfoJ,pEndpointInfo);
+    EndpointInfoToJSON(pEndpointInfo,&endpointInfoJ);
 
     afb_req_success(req, endpointInfoJ, "Retrieved endpoint information and properties");
 }
 
-PUBLIC void audiohlapi_set_property(struct afb_req req)
+PUBLIC void audiohlapi_property(struct afb_req req)
 {
     json_object *queryJ = NULL;
     endpointID_t endpointID = AHL_UNDEFINED;
@@ -1128,12 +933,11 @@ PUBLIC void audiohlapi_set_property(struct afb_req req)
     json_object * propValueJ = NULL;
     
     queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:s,s:i,s:s,s:o}", "endpoint_type", &pEndpointTypeStr,"endpoint_id",&endpointID,"property_name",&propertyName,"value",&propValueJ);
+    int err = wrap_json_unpack(queryJ, "{s:s,s:i,s:s,s?o}", "endpoint_type", &pEndpointTypeStr,"endpoint_id",&endpointID,"property_name",&propertyName,"value",&propValueJ);
     if (err) {
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
         return;
     }
-    AFB_DEBUG("Parsed input arguments = endpoint_type:%s endpoint_id:%d property_name:%s", pEndpointTypeStr,endpointID,propertyName);
     endpointType = EndpointTypeToEnum(pEndpointTypeStr);
 
     EndpointInfoT * pEndpointInfo = GetEndpointInfo(endpointID,endpointType);
@@ -1143,59 +947,32 @@ PUBLIC void audiohlapi_set_property(struct afb_req req)
         return;
     }
 
-#ifndef AHL_DISCONNECT_POLICY  
-    json_object *pPolicyEndpointJ = NULL;
-    err = PolicyEndpointStructToJSON(pEndpointInfo, &pPolicyEndpointJ);
-    if (err == AHL_POLICY_UTIL_FAIL)
-    {
-        afb_req_fail(req, "Audio policy violation", "Unable to get JSON object for Policy_SetVolume");
-        return;
-    } 
+    if (propValueJ != NULL) {
+    #ifndef AHL_DISCONNECT_POLICY  
+        json_object *pPolicyEndpointJ = NULL;
+        err = EndpointInfoToJSON(pEndpointInfo, &pPolicyEndpointJ);
+        if (err == AHL_POLICY_UTIL_FAIL)
+        {
+            afb_req_fail(req, "Audio policy violation", "Unable to get JSON object for Policy_SetVolume");
+            return;
+        } 
 
-    json_object *paramJ= json_object_new_string(propertyName);
-    json_object_object_add(pPolicyEndpointJ, "arg_property_name", paramJ);
-    json_object_object_add(pPolicyEndpointJ, "arg_property_value", propValueJ);
+        json_object *paramJ= json_object_new_string(propertyName);
+        json_object_object_add(pPolicyEndpointJ, "arg_property_name", paramJ);
+        json_object_object_add(pPolicyEndpointJ, "arg_property_value", propValueJ);
 
-    // Call policy to allow custom policy actions in current context
-    int policyAllowed = Policy_SetProperty(pPolicyEndpointJ);     
-    if (!policyAllowed)
-    {
-        afb_req_fail(req, "Audio policy violation", "Set endpoint property not allowed in current context");
-        return;
-    }
-#else
-    // Simulate that policy returns target state (accepted)
-    if (pEndpointInfo->pPropTable)
-        g_hash_table_insert(pEndpointInfo->pPropTable, propertyName, propValueJ);
-#endif
-
-    //afb_event_push(g_AHLCtx.policyCtx.propertyEvent,queryJ);
-
-    afb_req_success(req, NULL, "Set property completed");
-}
-
-PUBLIC void audiohlapi_get_property(struct afb_req req)
-{
-    json_object *queryJ = NULL;
-    endpointID_t endpointID = AHL_UNDEFINED;
-    char * pEndpointTypeStr = NULL;
-    EndpointTypeT endpointType = ENDPOINTTYPE_MAXVALUE;
-    char * propertyName = NULL;
-    
-    queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:s,s:i,s:s}", "endpoint_type", &pEndpointTypeStr,"endpoint_id",&endpointID,"property_name",&propertyName);
-    if (err) {
-        afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
-        return;
-    }
-    AFB_DEBUG("Parsed input arguments = endpoint_type:%s endpoint_id:%d property_name:%s", pEndpointTypeStr,endpointID,propertyName);
-    endpointType = EndpointTypeToEnum(pEndpointTypeStr);
-
-    EndpointInfoT * pEndpointInfo = GetEndpointInfo(endpointID,endpointType);
-    if (pEndpointInfo == NULL)
-    {
-        afb_req_fail_f(req, "Endpoint not found", "Endpoint information not found for id:%d type%d",endpointID,endpointType);
-        return;
+        // Call policy to allow custom policy actions in current context
+        int policyAllowed = Policy_SetProperty(pPolicyEndpointJ);     
+        if (!policyAllowed)
+        {
+            afb_req_fail(req, "Audio policy violation", "Set endpoint property not allowed in current context");
+            return;
+        }
+    #else
+        // Simulate that policy returns target state (accepted)
+        if (pEndpointInfo->pPropTable)
+            g_hash_table_insert(pEndpointInfo->pPropTable, propertyName, propValueJ);
+    #endif
     }
 
     // Retrieve cached property value
@@ -1206,13 +983,9 @@ PUBLIC void audiohlapi_get_property(struct afb_req req)
     }
 
     json_object_get(propertyValJ); // Increase ref count so that framework does not free our JSON object
-    //AFB_WARNING("properties %s", json_object_get_string(propertyValJ));
-    //json_object_get(propertyValJ); // Increase ref count so that framework does not free our JSON object
 
-    afb_req_success(req, propertyValJ, "Retrieved property value");
+    afb_req_success(req, propertyValJ, "Set/get property completed");
 }
-
-// Audio related events
 
 PUBLIC void audiohlapi_get_list_actions(struct afb_req req)
 {
@@ -1226,7 +999,6 @@ PUBLIC void audiohlapi_get_list_actions(struct afb_req req)
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
         return;
     }
-    AFB_DEBUG("Parsed input arguments = audio_role:%s",audioRole);
 
     // Build and return list of actions for specific audio role
     RoleInfoT * pRole = GetRole(audioRole);
@@ -1264,7 +1036,6 @@ PUBLIC void audiohlapi_post_action(struct afb_req req)
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
         return;
     }
-    AFB_DEBUG("Parsed input arguments = action_name:%s audio_role:%s", actionName,audioRole);
 
     // Verify if known action for audio role
     RoleInfoT * pRole = GetRole(audioRole);
@@ -1296,7 +1067,15 @@ PUBLIC void audiohlapi_post_action(struct afb_req req)
 
 #ifndef AHL_DISCONNECT_POLICY  
     // Call policy to allow custom policy actions in current context (e.g. cancel playback)
-    int policyAllowed = Policy_PostAction(queryJ); 
+    json_object * pActionInfo = NULL;
+    err = wrap_json_pack(&pActionInfo, "{s:s,s:s,s?s,s?o}", "action_name", &actionName,"audio_role",&audioRole,"media_name",&mediaName,"action_context",&actionContext);
+    if (err) {
+        afb_req_fail_f(req, "Invalid arguments", "Could not create action JSON object arguments");
+        return;
+    }
+    json_object_get(pActionInfo);
+    int policyAllowed = Policy_PostAction(pActionInfo); 
+    //int policyAllowed = Policy_PostAction(queryJ); 
     if (!policyAllowed)
     {
         afb_req_fail(req, "Audio policy violation", "Post sound action not allowed in current context");
@@ -1304,20 +1083,17 @@ PUBLIC void audiohlapi_post_action(struct afb_req req)
     }
 #endif
 
-    //afb_event_push(g_AHLCtx.policyCtx.postEvent,queryJ);
-
     afb_req_success(req, NULL, "Posted sound action");
  }
 
-
-// Monitoring
-PUBLIC void audiohlapi_subscribe(struct afb_req req)
+PUBLIC void audiohlapi_event_subscription(struct afb_req req)
 {
     json_object *queryJ = NULL;
     json_object * eventArrayJ = NULL;
+    int iSubscribe = 1;
 
     queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:o}", "events", &eventArrayJ);
+    int err = wrap_json_unpack(queryJ, "{s:o,s:i}", "events", &eventArrayJ,"subscribe",&iSubscribe);
     if (err) {
         afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
         return;
@@ -1334,16 +1110,22 @@ PUBLIC void audiohlapi_subscribe(struct afb_req req)
 			return;
         }
         else if(!strcasecmp(pEventName, AHL_ENDPOINT_PROPERTY_EVENT)) {
-			afb_req_subscribe(req, g_AHLCtx.policyCtx.propertyEvent);
-            AFB_DEBUG("Client subscribed to endpoint property events");
+            if (iSubscribe)
+			    afb_req_subscribe(req, g_AHLCtx.policyCtx.propertyEvent);
+            else
+                afb_req_unsubscribe(req, g_AHLCtx.policyCtx.propertyEvent);
 		}
         else if(!strcasecmp(pEventName, AHL_ENDPOINT_VOLUME_EVENT)) {
-			afb_req_subscribe(req, g_AHLCtx.policyCtx.volumeEvent);
-            AFB_DEBUG("Client subscribed to endpoint volume events");
+            if (iSubscribe)
+			    afb_req_subscribe(req, g_AHLCtx.policyCtx.volumeEvent);
+            else
+                afb_req_unsubscribe(req, g_AHLCtx.policyCtx.volumeEvent);
 		}
         else if(!strcasecmp(pEventName, AHL_POST_ACTION_EVENT)) {
-			afb_req_subscribe(req, g_AHLCtx.policyCtx.postActionEvent);
-            AFB_DEBUG("Client subscribed to post event calls events");
+            if (iSubscribe)
+			    afb_req_subscribe(req, g_AHLCtx.policyCtx.postActionEvent);
+            else
+                afb_req_unsubscribe(req, g_AHLCtx.policyCtx.postActionEvent);
 		}
         else {
 			afb_req_fail(req, "failed", "Invalid event");
@@ -1351,50 +1133,7 @@ PUBLIC void audiohlapi_subscribe(struct afb_req req)
 		}
     }
 
-    afb_req_success(req, NULL, "Subscribe to events finished");
-}
-
-PUBLIC void audiohlapi_unsubscribe(struct afb_req req)
-{
-    json_object *queryJ = NULL;
-    json_object * eventArrayJ = NULL;
-
-    queryJ = afb_req_json(req);
-    int err = wrap_json_unpack(queryJ, "{s:o}", "events", &eventArrayJ);
-    if (err) {
-        afb_req_fail_f(req, "Invalid arguments", "Args not a valid json object query=%s", json_object_get_string(queryJ));
-        return;
-    }
-    
-    int iNumEvents = json_object_array_length(eventArrayJ);
-    for (int i = 0; i < iNumEvents; i++)
-    {
-        char * pEventName = NULL;
-        json_object * jEvent = json_object_array_get_idx(eventArrayJ,i);
-        pEventName = (char *)json_object_get_string(jEvent);
-        if(pEventName == NULL) {
-            afb_req_fail(req, "failed", "Invalid event");
-			return;
-        }
-        else if(!strcasecmp(pEventName, AHL_ENDPOINT_PROPERTY_EVENT)) {
-			afb_req_unsubscribe(req, g_AHLCtx.policyCtx.propertyEvent);
-            AFB_DEBUG("Client unsubscribed to endpoint property events");
-		}
-        else if(!strcasecmp(pEventName, AHL_ENDPOINT_VOLUME_EVENT)) {
-			afb_req_unsubscribe(req, g_AHLCtx.policyCtx.volumeEvent);
-            AFB_DEBUG("Client unsubscribed to endpoint volume events");
-		}
-        else if(!strcasecmp(pEventName, AHL_POST_ACTION_EVENT)) {
-			afb_req_unsubscribe(req, g_AHLCtx.policyCtx.postActionEvent);
-            AFB_DEBUG("Client unsubscribed to post event calls events");
-		}
-        else {
-			afb_req_fail(req, "failed", "Invalid event");
-			return;
-		}
-    }
-
-    afb_req_success(req, NULL, "Unsubscribe to events finished");
+    afb_req_success(req, NULL, "Event subscription update finished");
 }
 
 // Since the policy is currently in the same binding, it cannot raise events on its own
@@ -1411,42 +1150,7 @@ PUBLIC void audiohlapi_raise_event(json_object * pEventDataJ)
        return;
     }
 
-    if(strcasecmp(pEventName, AHL_ENDPOINT_INIT_EVENT)==0) {
-        char * pAudioRole = NULL;
-        endpointID_t endpointID = AHL_UNDEFINED;
-        EndpointTypeT endpointType = ENDPOINTTYPE_MAXVALUE;
-        int err = wrap_json_unpack(pEventDataJ,"{s:i,s:i,s:s}",
-                            "endpoint_id", &endpointID, 
-                            "endpoint_type", &endpointType,
-                            "audio_role", &pAudioRole);
-        if(err)
-        {
-            AFB_ERROR("Unable to unpack property init event");
-            return;
-        }
-
-        RoleInfoT * pRole = GetRole(pAudioRole);
-        if ( pRole == NULL ){
-            AFB_ERROR("Requested audio role does not exist in current configuration -> %s", pAudioRole);
-            return;
-        }
-    
-        EndpointInfoT * pEndpointInfo = InitEndpointInfo();
-        g_assert_nonnull(pEndpointInfo);
-        PolicyCtxJSONToEndpoint(pEventDataJ,pEndpointInfo);
-
-        err = ReplaceEndpointInfoWithRole(endpointID,endpointType,pRole,pEndpointInfo);        
-        if(err == AHL_FAIL)
-        {
-            AFB_ERROR("Can't update EndpointInfo aborting");
-            return;
-        }
-
-        // Remove event name from object
-        // json_object_object_del(pEventDataJ,"event_name");
-        //afb_event_push(g_AHLCtx.policyCtx.propertyEvent,pEventDataJ); // Not broadcasted to application at this time
-    }
-    else if(strcasecmp(pEventName, AHL_ENDPOINT_PROPERTY_EVENT)==0) {
+    if(strcasecmp(pEventName, AHL_ENDPOINT_PROPERTY_EVENT)==0) {
         char * pAudioRole = NULL;
         char * pPropertyName = NULL;
         endpointID_t endpointID = AHL_UNDEFINED;
@@ -1475,13 +1179,13 @@ PUBLIC void audiohlapi_raise_event(json_object * pEventDataJ)
             json_type jType = json_object_get_type(propValueJ);
             switch (jType) {
                 case json_type_double:
-                    Add_Endpoint_Property_Double(pEndpointInfo,pPropertyName,json_object_get_double(propValueJ));
+                    g_hash_table_insert(pEndpointInfo->pPropTable, pPropertyName, json_object_new_double(json_object_get_double(propValueJ)));
                     break;
                 case json_type_int:
-                    Add_Endpoint_Property_Int(pEndpointInfo,pPropertyName,json_object_get_int(propValueJ));
+                    g_hash_table_insert(pEndpointInfo->pPropTable, pPropertyName, json_object_new_int(json_object_get_int(propValueJ)));
                     break;
                 case json_type_string:
-                    Add_Endpoint_Property_String(pEndpointInfo,pPropertyName,json_object_get_string(propValueJ));
+                    g_hash_table_insert(pEndpointInfo->pPropTable, pPropertyName, json_object_new_string(json_object_get_string(propValueJ)));
                     break;
                 default:
                     AFB_ERROR("Invalid property argument Property value not a valid json object query=%s", json_object_get_string(propValueJ));
@@ -1522,6 +1226,7 @@ PUBLIC void audiohlapi_raise_event(json_object * pEventDataJ)
     else if(strcasecmp(pEventName, AHL_POST_ACTION_EVENT)==0) {
         // Remove event name from object
         json_object_object_del(pEventDataJ,"event_name");
+        // BUG: This crashes... 
         afb_event_push(g_AHLCtx.policyCtx.postActionEvent,pEventDataJ);
     }
     else if(strcasecmp(pEventName, AHL_STREAM_STATE_EVENT)==0) {
@@ -1568,7 +1273,6 @@ PUBLIC void audiohlapi_raise_event(json_object * pEventDataJ)
         
         // Remove event name from object
         json_object_object_del(pEventDataJ,"event_name");
-        AFB_ERROR("pEventDataJ=%s", json_object_get_string(pEventDataJ));
         afb_event_push(pStreamInfo->streamStateEvent,pEventDataJ);   
     }
     else {        

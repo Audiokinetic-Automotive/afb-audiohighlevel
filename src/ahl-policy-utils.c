@@ -19,218 +19,164 @@
 #include <json-c/json.h>
 #include <glib.h>
 
-void Add_Endpoint_Property_Double( EndpointInfoT * io_pEndpointInfo, char * in_pPropertyName, double in_dPropertyValue)
+void Add_Endpoint_Property_Double( json_object * io_pPropertyArray, char * in_pPropertyName, double in_dPropertyValue)
 {
-    json_object * propValueJ = json_object_new_double(in_dPropertyValue);
-    g_hash_table_insert(io_pEndpointInfo->pPropTable, in_pPropertyName, propValueJ);
+    json_object * pPropertyJ = NULL;
+    wrap_json_pack(&pPropertyJ, "{s:s,s:o}",
+                        "property_name", in_pPropertyName, 
+                        "property_value", json_object_new_double(in_dPropertyValue)                  
+                        );
+    json_object_array_add(io_pPropertyArray, pPropertyJ);
 }
 
-
-void Add_Endpoint_Property_Int( EndpointInfoT * io_pEndpointInfo, char * in_pPropertyName, int in_iPropertyValue)
+void Add_Endpoint_Property_Int( json_object * io_pPropertyArray, char * in_pPropertyName, int in_iPropertyValue)
 {
-    json_object * propValueJ = json_object_new_int(in_iPropertyValue);
-    g_hash_table_insert(io_pEndpointInfo->pPropTable, in_pPropertyName, propValueJ);
+    json_object * pPropertyJ = NULL;
+    wrap_json_pack(&pPropertyJ, "{s:s,s:o}",
+                        "property_name", in_pPropertyName, 
+                        "property_value", json_object_new_int(in_iPropertyValue)                  
+                        );
+    json_object_array_add(io_pPropertyArray, pPropertyJ);
 }
 
-void Add_Endpoint_Property_String( EndpointInfoT * io_pEndpointInfo, char * in_pPropertyName, const char * in_pPropertyValue)
+void Add_Endpoint_Property_String( json_object * io_pPropertyArray, char * in_pPropertyName, const char * in_pPropertyValue)
 {
-    json_object * propValueJ = json_object_new_string(in_pPropertyValue);
-    g_hash_table_insert(io_pEndpointInfo->pPropTable, in_pPropertyName, propValueJ);
+    json_object * pPropertyJ = NULL;
+    wrap_json_pack(&pPropertyJ, "{s:s,s:o}",
+                        "property_name", in_pPropertyName, 
+                        "property_value", json_object_new_string(in_pPropertyValue)                 
+                        );
+    json_object_array_add(io_pPropertyArray, pPropertyJ);
 }
 
-int PolicyEndpointStructToJSON(EndpointInfoT * pEndpointInfo, json_object **ppPolicyEndpointJ)
+int EndpointToJSON(EndPointInterfaceInfoT * pEndpoint, json_object **ppEndpointJ)
 {
-    if(pEndpointInfo == NULL || pEndpointInfo->pPropTable == NULL)
+    if(ppEndpointJ == NULL || pEndpoint == NULL)
     {
-        AFB_ERROR("Invalid PolicyEndpointStructToJSON arguments");
+        AFB_ERROR("Invalid EndpointToJSON arguments");
         return AHL_POLICY_UTIL_FAIL;
     } 
 
-    //Create json object for PropTable
-    json_object *pPropTableJ = json_object_new_array();
-    if(pEndpointInfo->pPropTable) {      
-        GHashTableIter iter;
-        gpointer key, value;
-        g_hash_table_iter_init (&iter, pEndpointInfo->pPropTable);
-        while (g_hash_table_iter_next (&iter, &key, &value))
-        {
-            json_object *pPropertyJ = NULL;
-            int error=wrap_json_pack(&pPropertyJ, "{s:s,s:o}",
-                        "property_name", (char*)key, 
-                        "property_value", value                  
-                        );
-            if(error)                    
-            {
-                AFB_ERROR("Unable to pack JSON endpoint, =%s", wrap_json_get_error_string(error));   
-                return AHL_POLICY_UTIL_FAIL;             
-            }        
-            json_object_array_add(pPropTableJ, pPropertyJ);
-        }
-        AFB_DEBUG("json object query=%s", json_object_get_string(pPropTableJ));
-    }
-
+    
     //Create json object for Endpoint
-    int err= wrap_json_pack(ppPolicyEndpointJ, "{s:i,s:i,s:s,s:s,s:s,s:s,s:s,s:i,s:s,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s:o}",
-                    "endpoint_id", pEndpointInfo->endpointID, 
-                    "endpoint_type", pEndpointInfo->type,
-                    "device_name", pEndpointInfo->gsDeviceName, 
-                    "display_name", pEndpointInfo->gsDisplayName, 
-                    "device_uri",  pEndpointInfo->gsDeviceURI,
-                    "device_domain", pEndpointInfo->gsDeviceDomain,
-                    "audio_role",pEndpointInfo->pRoleName,
-                    "device_uri_type", pEndpointInfo->deviceURIType,
-                    "hal_api_name", pEndpointInfo->gsHALAPIName,
-                    "alsa_cardNum", pEndpointInfo->alsaInfo.cardNum, 
-                    "alsa_deviceNum", pEndpointInfo->alsaInfo.deviceNum, 
-                    "alsa_subDeviceNum", pEndpointInfo->alsaInfo.subDeviceNum,
-                    "format_samplerate", pEndpointInfo->format.sampleRate,
-                    "format_numchannels", pEndpointInfo->format.numChannels,
-                    "format_sampletype",pEndpointInfo->format.sampleType,
-                    "volume", pEndpointInfo->iVolume,
-                    "property_table", pPropTableJ
+    int err= wrap_json_pack(ppEndpointJ, "{s:i,s:i,s:s,s:s,s:s,s:s,s:s,s:i,s:s,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s?o}",
+                    "endpoint_id", pEndpoint->endpointID, 
+                    "endpoint_type", pEndpoint->type,
+                    "device_name", pEndpoint->gsDeviceName, 
+                    "display_name", pEndpoint->gsDisplayName, 
+                    "device_uri",  pEndpoint->gsDeviceURI,
+                    "device_domain", pEndpoint->gsDeviceDomain,
+                    "audio_role",pEndpoint->pRoleName,
+                    "device_uri_type", pEndpoint->deviceURIType,
+                    "hal_api_name", pEndpoint->gsHALAPIName,
+                    "alsa_cardNum", pEndpoint->alsaInfo.cardNum, 
+                    "alsa_deviceNum", pEndpoint->alsaInfo.deviceNum, 
+                    "alsa_subDeviceNum", pEndpoint->alsaInfo.subDeviceNum,
+                    "format_samplerate", pEndpoint->format.sampleRate,
+                    "format_numchannels", pEndpoint->format.numChannels,
+                    "format_sampletype",pEndpoint->format.sampleType,
+                    "volume", pEndpoint->iVolume,
+                    "property_table", pEndpoint->pPropTableJ
                     );
     if (err) {
         AFB_ERROR("Unable to pack JSON endpoint, =%s", wrap_json_get_error_string(err));
         return AHL_POLICY_UTIL_FAIL;
     }    
-    AFB_DEBUG("JSON endpoint information=%s", json_object_get_string(*ppPolicyEndpointJ));
+    AFB_DEBUG("JSON endpoint information=%s", json_object_get_string(*ppEndpointJ));
     return AHL_POLICY_UTIL_SUCCESS;
 }
 
-int PolicyStreamStructToJSON(StreamInfoT * pPolicyStream, json_object **ppPolicyStreamJ)
+int StreamToJSON(StreamInterfaceInfoT * pStream, json_object **ppStreamJ)
 {
-    if(pPolicyStream == NULL)
+    if(pStream == NULL)
     {
-        AFB_ERROR("Invalid arguments to PolicyStreamStructToJSON");
+        AFB_ERROR("Invalid arguments to StreamToJSON, stream structure is NULL");
         return AHL_POLICY_UTIL_FAIL;
     }
 
-    json_object * pEndpointJ = NULL;
-    int iRet = PolicyEndpointStructToJSON(pPolicyStream->pEndpointInfo, &pEndpointJ);
-    if (iRet) {
-        return iRet;
-    }
 
-    //Create json object for stream
-    int err = wrap_json_pack(ppPolicyStreamJ, "{s:i,s:i,s:i,s:I,s:i,s:s,s:i,s:i,s:o}",
-                    "stream_id", pPolicyStream->streamID, 
-                    "stream_state", pPolicyStream->streamState,
-                    "stream_mute", pPolicyStream->streamMute, 
-                    "stream_state_event", &pPolicyStream->streamStateEvent, 
-                    "endpoint_sel_mod",  pPolicyStream->endpointSelMode,
-                    "role_name", pPolicyStream->pRoleName,
-                    "priority", pPolicyStream->iPriority,
-                    "interrupt_behavior", pPolicyStream->eInterruptBehavior,
-                    "endpoint_info", pEndpointJ
-                    );
+    json_object *EndpointJ = NULL;
+    int err = EndpointToJSON(&pStream->endpoint, &EndpointJ);
     if (err) {
         AFB_ERROR("Unable to pack JSON endpoint, =%s", wrap_json_get_error_string(err));
         return AHL_POLICY_UTIL_FAIL;
     }
 
-    AFB_DEBUG("JSON stream information=%s", json_object_get_string(*ppPolicyStreamJ));
+    //Create json object for stream
+    err = wrap_json_pack(ppStreamJ, "{s:i,s:i,s:i,s:s,s:i,s:i,s:o}",
+                    "stream_id", pStream->streamID, 
+                    "stream_state", pStream->streamState,
+                    "stream_mute", pStream->streamMute, 
+                    "role_name", pStream->pRoleName,
+                    "priority", pStream->iPriority,
+                    "interrupt_behavior", pStream->eInterruptBehavior,
+                    "endpoint_info", EndpointJ
+                    );
+    if (err) {
+        AFB_ERROR("Unable to pack JSON Stream, =%s", wrap_json_get_error_string(err));
+        return AHL_POLICY_UTIL_FAIL;
+    }
+
+    AFB_DEBUG("JSON stream information=%s", json_object_get_string(*ppStreamJ));
 
     return AHL_POLICY_UTIL_SUCCESS;
 }
 
-int PolicyCtxJSONToEndpoint(json_object *pEndpointJ, EndpointInfoT * pEndpointInfo)
+//pEndpointInterfaceInfo must be pre-allocated by the caller
+int JSONToEndpoint(json_object *pEndpointJ, EndPointInterfaceInfoT *pEndpoint)
 {
-    if(pEndpointJ == NULL || pEndpointInfo == NULL /*|| pEndpointInfo->pPropTable == NULL */ )
+
+    if(pEndpointJ == NULL || pEndpoint == NULL)
     {
-        AFB_ERROR("Invalid arguments for PolicyCtxJSONToEndpoint");
+        AFB_ERROR("Invalid arguments for InterfaceJSONToEndpoint");
         return AHL_POLICY_UTIL_FAIL;
     }
 
     //Unpack Endpoint
-    json_object *pPropTableJ = NULL;
-    int err = wrap_json_unpack(pEndpointJ, "{s:i,s:i,s:s,s:s,s:s,s:s,s:s,s:i,s:s,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s:o}",
-                    "endpoint_id", &pEndpointInfo->endpointID, 
-                    "endpoint_type", &pEndpointInfo->type,
-                    "device_name", &pEndpointInfo->gsDeviceName, 
-                    "display_name", &pEndpointInfo->gsDisplayName, 
-                    "device_uri",  &pEndpointInfo->gsDeviceURI,
-                    "device_domain", &pEndpointInfo->gsDeviceDomain,
-                    "audio_role", &pEndpointInfo->pRoleName,
-                    "device_uri_type", &pEndpointInfo->deviceURIType,
-                    "hal_api_name", &pEndpointInfo->gsHALAPIName,
-                    "alsa_cardNum", &pEndpointInfo->alsaInfo.cardNum, 
-                    "alsa_deviceNum", &pEndpointInfo->alsaInfo.deviceNum, 
-                    "alsa_subDeviceNum", &pEndpointInfo->alsaInfo.subDeviceNum,
-                    "format_samplerate", &pEndpointInfo->format.sampleRate,
-                    "format_numchannels", &pEndpointInfo->format.numChannels,
-                    "format_sampletype",&pEndpointInfo->format.sampleType,
-                    "volume", &pEndpointInfo->iVolume,                    
-                    "property_table", &pPropTableJ                    
+    int err = wrap_json_unpack(pEndpointJ, "{s:i,s:i,s:s,s:s,s:s,s:s,s:s,s:i,s:s,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s?o}",
+                    "endpoint_id", &pEndpoint->endpointID, 
+                    "endpoint_type", &pEndpoint->type,
+                    "device_name", &pEndpoint->gsDeviceName, 
+                    "display_name", &pEndpoint->gsDisplayName, 
+                    "device_uri",  &pEndpoint->gsDeviceURI,
+                    "device_domain", &pEndpoint->gsDeviceDomain,
+                    "audio_role", &pEndpoint->pRoleName,
+                    "device_uri_type", &pEndpoint->deviceURIType,
+                    "hal_api_name", &pEndpoint->gsHALAPIName,
+                    "alsa_cardNum", &pEndpoint->alsaInfo.cardNum, 
+                    "alsa_deviceNum", &pEndpoint->alsaInfo.deviceNum, 
+                    "alsa_subDeviceNum", &pEndpoint->alsaInfo.subDeviceNum,
+                    "format_samplerate", &pEndpoint->format.sampleRate,
+                    "format_numchannels", &pEndpoint->format.numChannels,
+                    "format_sampletype",&pEndpoint->format.sampleType,
+                    "volume", &pEndpoint->iVolume,                    
+                    "property_table", &pEndpoint->pPropTableJ                    
                     );
     if (err) {
         AFB_ERROR("Unable to unpack JSON endpoint, =%s", wrap_json_get_error_string(err));
         return AHL_POLICY_UTIL_FAIL;
     }
-
-    // Unpack prop table
-    if(pPropTableJ)
-    {
-        pEndpointInfo->pPropTable = g_hash_table_new(g_str_hash, g_str_equal);
-
-        int nbProperties = json_object_array_length(pPropTableJ);
-        for(int i=0; i<nbProperties; i++)
-        {
-            json_object * propJ = json_object_array_get_idx(pPropTableJ,i);
-            if (propJ) {
-                char * pPropertyName = NULL;
-                json_object * pPropertyValueJ = NULL;
-
-                int err=wrap_json_unpack(propJ, "{s:s,s:o}",
-                                        "property_name", &pPropertyName, 
-                                        "property_value", &pPropertyValueJ);
-                if (err) {
-                    AFB_ERROR("Unable to unpack JSON endpoint, = %s", wrap_json_get_error_string(err));
-                    return AHL_POLICY_UTIL_FAIL;
-                }        
-
-                // Object type detection for property value (string = state, numeric = property)
-                json_type jType = json_object_get_type(pPropertyValueJ);
-                switch (jType) {
-                    case json_type_double:
-                        Add_Endpoint_Property_Double(pEndpointInfo,pPropertyName,json_object_get_double(pPropertyValueJ));
-                        break;
-                    case json_type_int:
-                        Add_Endpoint_Property_Int(pEndpointInfo,pPropertyName,json_object_get_int(pPropertyValueJ));
-                        break;
-                    case json_type_string:
-                        Add_Endpoint_Property_String(pEndpointInfo,pPropertyName,json_object_get_string(pPropertyValueJ));
-                        break;
-                    default:
-                        AFB_ERROR("Invalid property argument Property value not a valid json object query=%s", json_object_get_string(pPropertyValueJ));
-                        return AHL_POLICY_UTIL_FAIL;
-                }
-            }
-        }
-    }
-
     return AHL_POLICY_UTIL_SUCCESS;
 }
 
-int PolicyCtxJSONToStream(json_object *pStreamJ, StreamInfoT * pPolicyStream)
+int JSONToStream(json_object *pStreamJ, StreamInterfaceInfoT * pStream)
 {
-    if(pStreamJ == NULL || pPolicyStream == NULL)
+    if(pStreamJ == NULL || pStream == NULL)
     {
-        AFB_ERROR("Invalid arguments for PolicyCtxJSONToStream");
+        AFB_ERROR("Invalid arguments for InterfaceCtxJSONToStream");
         return AHL_POLICY_UTIL_FAIL;
     }
 
     //Unpack StreamInfo
     json_object *pEndpointJ = NULL;
     AFB_WARNING("json object query=%s", json_object_get_string(pStreamJ));
-    int err=wrap_json_unpack(pStreamJ, "{s:i,s:i,s:i,s:I,s:i,s:s,s:i,s:i,s:o}",
-                    "stream_id", &pPolicyStream->streamID, 
-                    "stream_state", &pPolicyStream->streamState,
-                    "stream_mute", &pPolicyStream->streamMute, 
-                    "stream_state_event", &pPolicyStream->streamStateEvent, 
-                    "endpoint_sel_mod",  &pPolicyStream->endpointSelMode,
-                    "role_name", &pPolicyStream->pRoleName,
-                    "priority", &pPolicyStream->iPriority,
-                    "interrupt_behavior", &pPolicyStream->eInterruptBehavior,
+    int err=wrap_json_unpack(pStreamJ, "{s:i,s:i,s:i,s:s,s:i,s:i,s:o}",
+                    "stream_id", &pStream->streamID, 
+                    "stream_state", &pStream->streamState,
+                    "stream_mute", &pStream->streamMute, 
+                    "role_name", &pStream->pRoleName,
+                    "priority", &pStream->iPriority,
+                    "interrupt_behavior", &pStream->eInterruptBehavior,
                     "endpoint_info", &pEndpointJ
                     );
 
@@ -239,7 +185,7 @@ int PolicyCtxJSONToStream(json_object *pStreamJ, StreamInfoT * pPolicyStream)
         return AHL_POLICY_UTIL_FAIL;
     }
 
-    int iRet = PolicyCtxJSONToEndpoint(pEndpointJ,pPolicyStream->pEndpointInfo);
+    int iRet = JSONToEndpoint(pEndpointJ,&pStream->endpoint);
     if (iRet) {
         return iRet;
     }

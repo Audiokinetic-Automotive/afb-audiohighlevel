@@ -27,6 +27,8 @@
 #define AHL_POLICY_UTIL_SUCCESS 0
 #define AHL_POLICY_UTIL_FAIL 1
 
+#define AHL_UNDEFINED -1
+
 typedef int endpointID_t;
 typedef int streamID_t;
 
@@ -118,60 +120,40 @@ typedef enum EndpointSelectionMode {
     ENDPOINTSELMODEMAXVALUE,            // Enum count, keep at the end
 } EndpointSelectionModeT;
 
-typedef struct EndpointInfo
-{
+
+typedef struct EndPointInterfaceInfo {
     endpointID_t    endpointID;         // Unique endpoint ID (per type)
     EndpointTypeT   type;               // Source or sink device
     char *          gsDeviceName;       // Unique device card name 
     char *          gsDisplayName;      // Application display name
     char *          gsDeviceURI;        // Associated URI 
     char *          gsDeviceDomain;     // Device URI domain (e.g. alsa or pulse)
-    char *          pRoleName;          // Role assigned to this endpoint 
     DeviceURITypeT  deviceURIType;      // Device URI type (includes audio domain information)
     char *          gsHALAPIName;       // HAL associated with the device (for volume control)
+    char *          pRoleName;          // Role string identifier (from role config but could be programatically overriden later)
     AlsaDeviceInfoT alsaInfo;           // ALSA specific device information
     AudioFormatT    format;             // Preferred audio format supported (later could be array of supported formats)
-    int             iVolume;            // Storage for current endpoint volume (policy effected). 
-    GHashTable *    pPropTable;         // Storage for array of properties (policy effected)         
-} EndpointInfoT;
+    int             iVolume;            // Storage for current endpoint volume (policy effected).  
+    json_object     *pPropTableJ;       //Property Table           
+} EndPointInterfaceInfoT;
 
-typedef struct StreamInfo {
+ 
+typedef struct StreamInterfaceInfo {
     streamID_t              streamID;           // Stream unique ID
-    EndpointInfoT *         pEndpointInfo;      // Associated endpoint information (reference)
     StreamStateT            streamState;        // Stream activity state
     StreamMuteT             streamMute;         // Stream mute state
-    struct afb_event        streamStateEvent;   // Stream specific event for stream state changes
-    EndpointSelectionModeT  endpointSelMode;    // Automatic (priority based) or manual endpoint selection
     char *                  pRoleName;          // Role string identifier (from role config but could be programatically overriden later)
     int                     iPriority;          // Role normalized priority (0-100) (from role config but could be programatically overriden later)
-    InterruptBehaviorT      eInterruptBehavior; // Role behavior when interrupting lower priority streams (from role config but could be programatically overriden later)
-} StreamInfoT;
+    InterruptBehaviorT      eInterruptBehavior; // Role behavior when interrupting lower priority streams (from role config but could be programatically overriden later)    
+    EndPointInterfaceInfoT  endpoint;
+} StreamInterfaceInfoT;
 
-
-typedef struct StreamPolicyInfo {
-    streamID_t      streamID;
-    int             RolePriority;
-    char *          pAudioRole;    
-    InterruptBehaviorT interruptBehavior;   
-    int             iDuckVolume;     //duck Volume
-} StreamPolicyInfoT;
- 
-typedef struct EndPointPolicyInfo {
-    endpointID_t    endpointID;
-    EndpointTypeT   type;    
-    DeviceURITypeT  deviceType;
-    char *          pDeviceName;
-    char *          pHalApiName; 
-    int             iVolume;     //Current Volume            
-    GArray *        streamInfo; //List of playing or duck stream at a given endpoint
-} EndPointPolicyInfoT;
-
-void Add_Endpoint_Property_Double( EndpointInfoT * io_pEndpointInfo, char * in_pPropertyName, double in_dPropertyValue);
-void Add_Endpoint_Property_Int( EndpointInfoT * io_pEndpointInfo, char * in_pPropertyName, int in_iPropertyValue);
-void Add_Endpoint_Property_String( EndpointInfoT * io_pEndpointInfo, char * in_pPropertyName, const char * in_pPropertyValue);
-int PolicyEndpointStructToJSON(EndpointInfoT * pPolicyEndpoint, json_object **ppPolicyEndpointJ);
-int PolicyCtxJSONToEndpoint(json_object *pEndpointJ, EndpointInfoT * pPolicyStream);
-int PolicyStreamStructToJSON(StreamInfoT * pPolicyStream, json_object **ppPolicyStreamJ);
-int PolicyCtxJSONToStream(json_object *pStreamJ, StreamInfoT * pPolicyStream);
+void Add_Endpoint_Property_Double( json_object * io_pPropertyArray, char * in_pPropertyName, double in_dPropertyValue);
+void Add_Endpoint_Property_Int( json_object * io_pPropertyArray, char * in_pPropertyName, int in_iPropertyValue);
+void Add_Endpoint_Property_String( json_object * io_pPropertyArray, char * in_pPropertyName, const char * in_pPropertyValue);
+int EndpointToJSON(EndPointInterfaceInfoT * pEndpoint, json_object **ppEndpointJ);
+int JSONToEndpoint(json_object *pEndpointJ, EndPointInterfaceInfoT * pStream);
+int StreamToJSON(StreamInterfaceInfoT * pPolicyStream, json_object **ppStreamJ);
+int JSONToStream(json_object *pStreamJ, StreamInterfaceInfoT * pPolicyStream);
 
 #endif // AHL_POLICY_UTILS_INCLUDE

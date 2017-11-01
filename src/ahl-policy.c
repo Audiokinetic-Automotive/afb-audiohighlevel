@@ -25,12 +25,25 @@
 
 #ifndef AHL_DISCONNECT_POLICY
 
-#define MAX_ACTIVE_STREAM_POLICY 30
-#define POLICY_FAIL     1
-#define POLICY_SUCCESS  0
 
-#define AHL_POLICY_UNDEFINED_HALNAME "UNDEFINED"
-#define AHL_POLICY_UNDEFINED_DISPLAYNAME "DeviceNotFound"
+typedef struct StreamPolicyInfo {
+    streamID_t      streamID;
+    int             RolePriority;
+    char *          pAudioRole;    
+    InterruptBehaviorT interruptBehavior;   
+    int             iDuckVolume;     //duck Volume
+} StreamPolicyInfoT;
+ 
+typedef struct EndPointPolicyInfo {
+    endpointID_t    endpointID;
+    EndpointTypeT   type;    
+    DeviceURITypeT  deviceType;
+    char *          pDeviceName;
+    char *          pHalApiName; 
+    int             iVolume;     //Current Volume            
+    GArray *        streamInfo; //List of playing or duck stream at a given endpoint
+} EndPointPolicyInfoT;
+
 
 typedef enum SystemState {
     SYSTEM_STARTUP = 0,     // Startup
@@ -39,6 +52,7 @@ typedef enum SystemState {
     SYSTEM_LOW_POWER,       // Low Power, save mode
     SYSTEM_MAXVALUE         // Enum count, keep at the end
 } SystemStateT;
+
 
 typedef struct HalInfo {
     char *pDevID;
@@ -59,6 +73,7 @@ typedef struct PolicyLocalCtx {
     GPtrArray *  pHALList;
     SystemStateT systemState;
 } PolicyLocalCtxT;
+
 
 //  Global Context
 PolicyLocalCtxT g_PolicyCtx;
@@ -125,7 +140,7 @@ static int getStreamConfig(char *pAudioRole, StreamConfigT *pStreamConfig)
 
 static int PolicySetVolume(int iEndpointID, int iEndpointType, char *pHalApiName, char *AudioRole, DeviceURITypeT deviceType, int iVolume, bool bMute)
 {
-    if(pHalApiName == NULL)
+    if(pHalApiName == NULL || (strcasecmp(pHalApiName, AHL_POLICY_UNDEFINED_HALNAME) == 0))
     {
         AFB_WARNING("SetVolume cannot be accomplished without proper HAL association");    
         return POLICY_FAIL;
@@ -338,22 +353,22 @@ static EndPointPolicyInfoT *PolicySearchEndPoint(EndpointTypeT type, char *pDevi
 }
 
 
-static int PolicyAddEndPoint(StreamInfoT *pStreamInfo)
+static int PolicyAddEndPoint(StreamInterfaceInfoT *pStreamInfo)
 {
-    EndPointPolicyInfoT *pPolicyEndPoint = PolicySearchEndPoint(pStreamInfo->pEndpointInfo->type, pStreamInfo->pEndpointInfo->gsDeviceName);
+    EndPointPolicyInfoT *pPolicyEndPoint = PolicySearchEndPoint(pStreamInfo->endpoint.type, pStreamInfo->endpoint.gsDeviceName);
     if(pPolicyEndPoint == NULL)
     {
         //create EndPoint and add playing stream
         EndPointPolicyInfoT newEndPointPolicyInfo;        
-        newEndPointPolicyInfo.endpointID  = pStreamInfo->pEndpointInfo->endpointID;
-        newEndPointPolicyInfo.type        = pStreamInfo->pEndpointInfo->type;
-        newEndPointPolicyInfo.deviceType  = pStreamInfo->pEndpointInfo->deviceURIType;
-        newEndPointPolicyInfo.pDeviceName = strdup(pStreamInfo->pEndpointInfo->gsDeviceName);
-        newEndPointPolicyInfo.pHalApiName = strdup(pStreamInfo->pEndpointInfo->gsHALAPIName);
-        newEndPointPolicyInfo.iVolume = pStreamInfo->pEndpointInfo->iVolume;
+        newEndPointPolicyInfo.endpointID  = pStreamInfo->endpoint.endpointID;
+        newEndPointPolicyInfo.type        = pStreamInfo->endpoint.type;
+        newEndPointPolicyInfo.deviceType  = pStreamInfo->endpoint.deviceURIType;
+        newEndPointPolicyInfo.pDeviceName = strdup(pStreamInfo->endpoint.gsDeviceName);
+        newEndPointPolicyInfo.pHalApiName = strdup(pStreamInfo->endpoint.gsHALAPIName);
+        newEndPointPolicyInfo.iVolume = pStreamInfo->endpoint.iVolume;
         newEndPointPolicyInfo.streamInfo = g_array_new(FALSE, TRUE, sizeof(StreamPolicyInfoT));;
 
-        if(pStreamInfo->pEndpointInfo->type == ENDPOINTTYPE_SINK)
+        if(pStreamInfo->endpoint.type == ENDPOINTTYPE_SINK)
         {
             g_array_append_val(g_PolicyCtx.pSinkEndpoints, newEndPointPolicyInfo);
         }
@@ -367,7 +382,7 @@ static int PolicyAddEndPoint(StreamInfoT *pStreamInfo)
 }
 
 
-static int PolicyAddStream(EndPointPolicyInfoT *pCurrEndPointPolicy, StreamInfoT *pStreamInfo)
+static int PolicyAddStream(EndPointPolicyInfoT *pCurrEndPointPolicy, StreamInterfaceInfoT *pStreamInfo)
 {
     StreamPolicyInfoT newStreamPolicyInfo;
 
@@ -380,7 +395,7 @@ static int PolicyAddStream(EndPointPolicyInfoT *pCurrEndPointPolicy, StreamInfoT
     return POLICY_SUCCESS;    
 }
 
-static int PolicyRunningIdleTransition(EndPointPolicyInfoT *pCurrEndPointPolicy,StreamInfoT * pStreamInfo)
+static int PolicyRunningIdleTransition(EndPointPolicyInfoT *pCurrEndPointPolicy,StreamInterfaceInfoT * pStreamInfo)
 {
     int err=0;
     if(pCurrEndPointPolicy == NULL || pCurrEndPointPolicy->streamInfo->len == 0)
@@ -418,21 +433,17 @@ static int PolicyRunningIdleTransition(EndPointPolicyInfoT *pCurrEndPointPolicy,
                         }
                         
                         return POLICY_SUCCESS;                                            
-                        break;
                     case INTERRUPTBEHAVIOR_PAUSE:
                         //pInterruptStreamInfo->streamState = STREAM_STATE_RUNNING;
                         PolicyPostStateEvent(HighPriorityStreamInfo.streamID,STREAM_EVENT_RESUME);                        
                         return POLICY_SUCCESS;                                            
-                        break;
 
                     case INTERRUPTBEHAVIOR_CANCEL:
                         PolicyPostStateEvent(HighPriorityStreamInfo.streamID,STREAM_EVENT_START);                        
                         return POLICY_SUCCESS;                                            
-                        break;
                     default:
                         AFB_ERROR("Unsupported Intterupt Behavior");
                         return POLICY_FAIL; 
-                        break;
                 } 
             }            
         }
@@ -440,7 +451,7 @@ static int PolicyRunningIdleTransition(EndPointPolicyInfoT *pCurrEndPointPolicy,
     return POLICY_SUCCESS;
 }
 
-static int PolicyIdleRunningTransition(EndPointPolicyInfoT *pCurrEndPointPolicy, StreamInfoT * pStreamInfo)
+static int PolicyIdleRunningTransition(EndPointPolicyInfoT *pCurrEndPointPolicy, StreamInterfaceInfoT * pStreamInfo)
 {
     int err=0;    
     if(pCurrEndPointPolicy->streamInfo == NULL)
@@ -464,7 +475,7 @@ static int PolicyIdleRunningTransition(EndPointPolicyInfoT *pCurrEndPointPolicy,
             {
                 case INTERRUPTBEHAVIOR_CONTINUE:
                     //Save the current Volume and set the docking volume
-                    pCurrentActiveStreamInfo->iDuckVolume = pStreamInfo->pEndpointInfo->iVolume;
+                    pCurrentActiveStreamInfo->iDuckVolume = pStreamInfo->endpoint.iVolume;
                     StreamConfigT StreamConfig;
                     err = getStreamConfig(pStreamInfo->pRoleName, &StreamConfig);
                     if(err == POLICY_FAIL)
@@ -508,9 +519,7 @@ static int PolicyIdleRunningTransition(EndPointPolicyInfoT *pCurrEndPointPolicy,
             //Higher Priority Stream is playing
             AFB_ERROR("Higher Priority Stream is playing");
             return POLICY_FAIL; 
-        }
-
-                        
+        }                
     }
 
     return POLICY_SUCCESS;
@@ -550,8 +559,11 @@ static void PolicySpeedModify(int speed)
     }
 }
 
-static int RetrieveAssociatedHALAPIName(EndpointInfoT * io_pEndpointInfo)
+static int RetrieveAssociatedHALAPIName(int iAlsaCardNumber,char ** out_pDisplayName,char ** out_pHALName)
 {
+    *out_pDisplayName = NULL;
+    *out_pHALName = NULL;
+
     if(g_PolicyCtx.pHALList)
     {
         for(int i=0; i<g_PolicyCtx.pHALList->len; i++)
@@ -559,16 +571,13 @@ static int RetrieveAssociatedHALAPIName(EndpointInfoT * io_pEndpointInfo)
             HalInfoT *pHalInfo = g_ptr_array_index(g_PolicyCtx.pHALList, i);
             // Retrieve card number (e.g. hw:0)
             int iCardNum = atoi(pHalInfo->pDevID+3);
-            if (iCardNum == io_pEndpointInfo->alsaInfo.cardNum) {
-                io_pEndpointInfo->gsHALAPIName=strdup(pHalInfo->pAPIName);
-                io_pEndpointInfo->gsDisplayName=strdup(pHalInfo->pDisplayName);
+            if (iCardNum == iAlsaCardNumber) {
+                *out_pDisplayName = pHalInfo->pDisplayName;
+                *out_pHALName = pHalInfo->pAPIName;
                 return POLICY_SUCCESS;
             }            
         }
     }
-    
-    io_pEndpointInfo->gsHALAPIName=strdup(AHL_POLICY_UNDEFINED_HALNAME);
-    io_pEndpointInfo->gsDisplayName=strdup(AHL_POLICY_UNDEFINED_DISPLAYNAME);
     
     return POLICY_FAIL;
 }
@@ -621,13 +630,11 @@ static int GetHALList(void)
 //
 //  Policy API Functions
 //
-int Policy_OpenStream(json_object *pPolicyStreamJ)
+int Policy_OpenStream(json_object *pStreamJ)
 {
-    StreamInfoT PolicyStream;    
-    EndpointInfoT EndpointInfo;
-    PolicyStream.pEndpointInfo =&EndpointInfo;
+    StreamInterfaceInfoT Stream;    
 
-    int err = PolicyCtxJSONToStream(pPolicyStreamJ, &PolicyStream);
+    int err = JSONToStream(pStreamJ, &Stream);
     if(err == AHL_POLICY_UTIL_FAIL)
     {
         return AHL_POLICY_ACCEPT;     
@@ -641,26 +648,26 @@ int Policy_OpenStream(json_object *pPolicyStreamJ)
     } 
   
     StreamConfigT StreamConfig;
-    err = getStreamConfig(PolicyStream.pRoleName, &StreamConfig);
+    err = getStreamConfig(Stream.pRoleName, &StreamConfig);
     if(err == POLICY_FAIL)
     {
         return AHL_POLICY_ACCEPT;     
     }
 
-    if(PolicyStream.pEndpointInfo->deviceURIType != DEVICEURITYPE_NOT_ALSA) {
-        err=PolicyGetVolume(PolicyStream.pEndpointInfo->endpointID, 
-                            PolicyStream.pEndpointInfo->type,
-                            PolicyStream.pEndpointInfo->gsHALAPIName, 
-                            PolicyStream.pEndpointInfo->pRoleName, 
-                            PolicyStream.pEndpointInfo->deviceURIType, 
-                            &PolicyStream.pEndpointInfo->iVolume);
+    if(Stream.endpoint.deviceURIType != DEVICEURITYPE_NOT_ALSA) {
+        err=PolicyGetVolume(Stream.endpoint.endpointID, 
+                            Stream.endpoint.type,
+                            Stream.endpoint.gsHALAPIName, 
+                            Stream.endpoint.pRoleName, 
+                            Stream.endpoint.deviceURIType, 
+                            &Stream.endpoint.iVolume);
         if(err == POLICY_FAIL)
         {
             return AHL_POLICY_REJECT;
         }
     }
 
-    err = PolicyAddEndPoint(&PolicyStream);
+    err = PolicyAddEndPoint(&Stream);
     if(err == POLICY_FAIL)
     {
         return AHL_POLICY_REJECT;
@@ -668,13 +675,11 @@ int Policy_OpenStream(json_object *pPolicyStreamJ)
     return AHL_POLICY_ACCEPT; 
 }
 
-int Policy_CloseStream(json_object *pPolicyStreamJ)
+int Policy_CloseStream(json_object *pStreamJ)
 {
     //TODO remove Endpoint when there is no stream
-    StreamInfoT PolicyStream;    
-    EndpointInfoT EndpointInfo;
-    PolicyStream.pEndpointInfo =&EndpointInfo;
-    int err = PolicyCtxJSONToStream(pPolicyStreamJ, &PolicyStream);
+    StreamInterfaceInfoT Stream;    
+    int err = JSONToStream(pStreamJ, &Stream);
     if(err == AHL_POLICY_UTIL_FAIL)
     {
         return AHL_POLICY_ACCEPT;     
@@ -683,18 +688,14 @@ int Policy_CloseStream(json_object *pPolicyStreamJ)
     return AHL_POLICY_ACCEPT; 
 }
 
-int  Policy_SetStreamState(json_object *pPolicyStreamJ)
+int  Policy_SetStreamState(json_object *pStreamJ)
 {
     //TODO    
     // Optional: Mute endpoint before activation, unmute afterwards (after a delay?) to avoid noises
-    StreamInfoT PolicyStream;    
-    EndpointInfoT EndpointInfo;
-    PolicyStream.pEndpointInfo =&EndpointInfo;
-
-
     StreamStateT streamState = 0;
-    StreamInfoT * pPolicyStream = &PolicyStream;
-    int err = PolicyCtxJSONToStream(pPolicyStreamJ, pPolicyStream);
+    StreamInterfaceInfoT Stream;
+
+    int err = JSONToStream(pStreamJ, &Stream);
     if(err == AHL_POLICY_UTIL_FAIL)
     {
         return AHL_POLICY_ACCEPT;     
@@ -702,38 +703,38 @@ int  Policy_SetStreamState(json_object *pPolicyStreamJ)
 
     json_object *streamStateJ=NULL;
 
-    if(!json_object_object_get_ex(pPolicyStreamJ, "arg_stream_state", &streamStateJ))
+    if(!json_object_object_get_ex(pStreamJ, "arg_stream_state", &streamStateJ))
     {
         return AHL_POLICY_ACCEPT;     
     }
     streamState = (StreamStateT)json_object_get_int(streamStateJ);
 
     //Change of state
-    if(pPolicyStream->streamState != streamState)
+    if(Stream.streamState != streamState)
     {
         //seach corresponding endpoint and gather information on it        
-        EndPointPolicyInfoT *pCurrEndPointPolicy = PolicySearchEndPoint(pPolicyStream->pEndpointInfo->type , pPolicyStream->pEndpointInfo->gsDeviceName);
+        EndPointPolicyInfoT *pCurrEndPointPolicy = PolicySearchEndPoint(Stream.endpoint.type , Stream.endpoint.gsDeviceName);
     
-        switch(pPolicyStream->streamState)
+        switch(Stream.streamState)
         {
             case STREAM_STATE_IDLE:            
                 switch(streamState)
                 {
                     case STREAM_STATE_RUNNING:
-                        err = PolicyIdleRunningTransition(pCurrEndPointPolicy, pPolicyStream);
+                        err = PolicyIdleRunningTransition(pCurrEndPointPolicy, &Stream);
                         if(err)
                         {
                             return AHL_POLICY_REJECT;  
                         }                        
-                        PolicyPostStateEvent(pPolicyStream->streamID,STREAM_EVENT_START); 
+                        PolicyPostStateEvent(Stream.streamID,STREAM_EVENT_START); 
                         break;
                     case STREAM_STATE_PAUSED:
-                        err = PolicyIdleRunningTransition(pCurrEndPointPolicy, pPolicyStream);
+                        err = PolicyIdleRunningTransition(pCurrEndPointPolicy, &Stream);
                         if(err)
                         {
                             return AHL_POLICY_REJECT;  
                         }  
-                        PolicyPostStateEvent(pPolicyStream->streamID,STREAM_EVENT_PAUSE); 
+                        PolicyPostStateEvent(Stream.streamID,STREAM_EVENT_PAUSE); 
                         break;
                     default:
                         return AHL_POLICY_REJECT;  
@@ -744,15 +745,15 @@ int  Policy_SetStreamState(json_object *pPolicyStreamJ)
                 switch(streamState)
                 {
                     case STREAM_STATE_IDLE:
-                        err = PolicyRunningIdleTransition(pCurrEndPointPolicy, pPolicyStream);
+                        err = PolicyRunningIdleTransition(pCurrEndPointPolicy, &Stream);
                         if(err)
                         {
                             return AHL_POLICY_REJECT;  
                         }                                            
-                        PolicyPostStateEvent(pPolicyStream->streamID,STREAM_EVENT_STOP);                                       
+                        PolicyPostStateEvent(Stream.streamID,STREAM_EVENT_STOP);                                       
                         break;
                     case STREAM_STATE_PAUSED:
-                        PolicyPostStateEvent(pPolicyStream->streamID,STREAM_EVENT_PAUSE);                                       
+                        PolicyPostStateEvent(Stream.streamID,STREAM_EVENT_PAUSE);                                       
                         break;
                     default:
                         return AHL_POLICY_REJECT;  
@@ -763,15 +764,15 @@ int  Policy_SetStreamState(json_object *pPolicyStreamJ)
                 switch(streamState)
                 {
                     case STREAM_STATE_IDLE:
-                        err = PolicyRunningIdleTransition(pCurrEndPointPolicy, pPolicyStream);
+                        err = PolicyRunningIdleTransition(pCurrEndPointPolicy, &Stream);
                         if(err)
                         {
                             return AHL_POLICY_REJECT;  
                         }                        
-                        PolicyPostStateEvent(pPolicyStream->streamID,STREAM_EVENT_STOP);    
+                        PolicyPostStateEvent(Stream.streamID,STREAM_EVENT_STOP);    
                         break;
                     case STREAM_STATE_RUNNING:
-                        PolicyPostStateEvent(pPolicyStream->streamID,STREAM_EVENT_RESUME); 
+                        PolicyPostStateEvent(Stream.streamID,STREAM_EVENT_RESUME); 
                         break;                 
                     default:
                         return AHL_POLICY_REJECT;  
@@ -786,15 +787,13 @@ int  Policy_SetStreamState(json_object *pPolicyStreamJ)
     return AHL_POLICY_ACCEPT; 
 }
 
-int  Policy_SetStreamMute(json_object *pPolicyStreamJ)
+int  Policy_SetStreamMute(json_object *pStreamJ)
 {
     StreamMuteT streamMute = 0;
-    StreamInfoT PolicyStream;    
-    EndpointInfoT EndpointInfo;
-    PolicyStream.pEndpointInfo =&EndpointInfo;
-    StreamInfoT * pPolicyStream = &PolicyStream;
+    
+    StreamInterfaceInfoT Stream;    
 
-    int err = PolicyCtxJSONToStream(pPolicyStreamJ, pPolicyStream);
+    int err = JSONToStream(pStreamJ, &Stream);
     if(err == AHL_POLICY_UTIL_FAIL)
     {
         return AHL_POLICY_ACCEPT;     
@@ -802,61 +801,58 @@ int  Policy_SetStreamMute(json_object *pPolicyStreamJ)
 
     json_object *streamMuteJ=NULL;
 
-    if(!json_object_object_get_ex(pPolicyStreamJ, "mute_state", &streamMuteJ))
+    if(!json_object_object_get_ex(pStreamJ, "mute_state", &streamMuteJ))
     {
         return AHL_POLICY_ACCEPT;     
     }
     streamMute = (StreamMuteT)json_object_get_int(streamMuteJ);
 
-    if(streamMute != pPolicyStream->streamMute)
+    if(streamMute != Stream.streamMute)
     {
         if(streamMute == STREAM_MUTED)
         {
 
-            err= PolicySetVolume(pPolicyStream->pEndpointInfo->endpointID, 
-                                pPolicyStream->pEndpointInfo->type,
-                                pPolicyStream->pEndpointInfo->gsHALAPIName,
-                                pPolicyStream->pRoleName,
-                                pPolicyStream->pEndpointInfo->deviceURIType,
+            err= PolicySetVolume(Stream.endpoint.endpointID, 
+                                Stream.endpoint.type,
+                                Stream.endpoint.gsHALAPIName,
+                                Stream.pRoleName,
+                                Stream.endpoint.deviceURIType,
                                 0,                                    
                                 true);
             if(err)                
             {
-                AFB_ERROR("StreamID:%i Set Volume return with errorcode%i",pPolicyStream->streamID, err);                        
+                AFB_ERROR("StreamID:%i Set Volume return with errorcode%i",Stream.streamID, err);                        
                 return AHL_POLICY_REJECT;  
             }   
-            PolicyPostStateEvent(pPolicyStream->streamID,STREAM_EVENT_MUTED); 
+            PolicyPostStateEvent(Stream.streamID,STREAM_EVENT_MUTED); 
         }
         else
         {
-            err= PolicySetVolume(pPolicyStream->pEndpointInfo->endpointID,
-                                pPolicyStream->pEndpointInfo->type,
-                                pPolicyStream->pEndpointInfo->gsHALAPIName,
-                                pPolicyStream->pRoleName,
-                                pPolicyStream->pEndpointInfo->deviceURIType,                                    
-                                pPolicyStream->pEndpointInfo->iVolume,
+            err= PolicySetVolume(Stream.endpoint.endpointID,
+                                Stream.endpoint.type,
+                                Stream.endpoint.gsHALAPIName,
+                                Stream.pRoleName,
+                                Stream.endpoint.deviceURIType,                                    
+                                Stream.endpoint.iVolume,
                                 true);        
             if(err)                
             {
-                AFB_ERROR("Endpoint:%i Set Volume return with errorcode%i",pPolicyStream->streamID, err);                        
+                AFB_ERROR("Endpoint:%i Set Volume return with errorcode%i",Stream.streamID, err);                        
                 return AHL_POLICY_REJECT;  
             }   
-            PolicyPostStateEvent(pPolicyStream->streamID,STREAM_EVENT_UNMUTED); 
-
+            PolicyPostStateEvent(Stream.streamID,STREAM_EVENT_UNMUTED); 
         }
-
-        pPolicyStream->streamMute = streamMute;
     }
     
     return AHL_POLICY_ACCEPT;
 }
 
-int Policy_SetVolume(json_object *pPolicyEndpointJ)
+int Policy_SetVolume(json_object *pEndpointJ)
 {
     char *volumeStr = NULL;
-    EndpointInfoT EndpointInfo;
+    EndPointInterfaceInfoT Endpoint;
   
-    int err = PolicyCtxJSONToEndpoint(pPolicyEndpointJ, &EndpointInfo);
+    int err = JSONToEndpoint(pEndpointJ, &Endpoint);
     if(err == AHL_POLICY_UTIL_FAIL)
     {
         return AHL_POLICY_ACCEPT;     
@@ -864,7 +860,7 @@ int Policy_SetVolume(json_object *pPolicyEndpointJ)
 
     json_object *volumeJ=NULL;
 
-    if(!json_object_object_get_ex(pPolicyEndpointJ, "arg_volume", &volumeJ))
+    if(!json_object_object_get_ex(pEndpointJ, "arg_volume", &volumeJ))
     {
         return AHL_POLICY_ACCEPT;     
     }
@@ -874,11 +870,11 @@ int Policy_SetVolume(json_object *pPolicyEndpointJ)
     int vol = atoi(volumeStr);
     
     //Set the volume
-    err= PolicySetVolume(EndpointInfo.endpointID, 
-                         EndpointInfo.type,
-                         EndpointInfo.gsHALAPIName,
-                         EndpointInfo.pRoleName,
-                         EndpointInfo.deviceURIType,                            
+    err= PolicySetVolume(Endpoint.endpointID, 
+                         Endpoint.type,
+                         Endpoint.gsHALAPIName,
+                         Endpoint.pRoleName,
+                         Endpoint.deviceURIType,                            
                          vol,
                          false);    
     if (err) 
@@ -890,13 +886,13 @@ int Policy_SetVolume(json_object *pPolicyEndpointJ)
     return AHL_POLICY_ACCEPT; 
 }
 
-int Policy_SetProperty(json_object *pPolicyEndpointJ)
+int Policy_SetProperty(json_object *pEndpointJ)
 {
 
     char *propertyName = NULL;
-    EndpointInfoT EndpointInfo;
+    EndPointInterfaceInfoT Endpoint;
 
-    int err = PolicyCtxJSONToEndpoint(pPolicyEndpointJ, &EndpointInfo);
+    int err = JSONToEndpoint(pEndpointJ, &Endpoint);
     if(err == AHL_POLICY_UTIL_FAIL)
     {
         return AHL_POLICY_ACCEPT;     
@@ -904,49 +900,76 @@ int Policy_SetProperty(json_object *pPolicyEndpointJ)
 
     json_object *propertyNameJ=NULL;
 
-    if(!json_object_object_get_ex(pPolicyEndpointJ, "arg_property_name", &propertyNameJ))
+    if(!json_object_object_get_ex(pEndpointJ, "arg_property_name", &propertyNameJ))
     {
         return AHL_POLICY_ACCEPT;     
     }
     propertyName = (char*)json_object_get_string(propertyNameJ);
 
     json_object *propValueJ;
-    if(!json_object_object_get_ex(pPolicyEndpointJ, "arg_property_value", &propValueJ))
+    if(!json_object_object_get_ex(pEndpointJ, "arg_property_value", &propValueJ))
+    {
+        return AHL_POLICY_ACCEPT;     
+    }
+    json_type currentTypeJ = json_object_get_type(propValueJ);
+
+    json_object *propArray;
+    if(!json_object_object_get_ex(pEndpointJ, "properties", &propArray))
     {
         return AHL_POLICY_ACCEPT;     
     }
 
-    gpointer *key_value=NULL;
+    int iPropArrayLen = json_object_array_length(propArray);        
+    int foundProperty = 0;
+    
+    for (int i = 0; i < iPropArrayLen; i++) 
+    {
+        // get the i-th object in medi_array
+        json_object *propElementJ = json_object_array_get_idx(propArray, i);
+        if(propElementJ)
+        {
+            json_object *propElementNameJ=NULL;
+            if(json_object_object_get_ex(propElementJ, "property_name", &propElementNameJ))
+            {
+                char *propElementName = (char*)json_object_get_string(propElementNameJ);   
+                if(strcasecmp(propElementName,propertyName)==0)         
+                {
+                    json_object *propElementValueJ=NULL;
+                    if(!json_object_object_get_ex(propElementJ, "property_value", &propElementValueJ))
+                    {
+                        //Get JsonObjectype
+                        json_type elementTypeJ = json_object_get_type(propElementValueJ);
 
-    key_value = g_hash_table_lookup(EndpointInfo.pPropTable,propertyName);
-    if(key_value == NULL)
+                        //Apply policy on set property if needed here
+                        //Here we only validate that the type is the same
+                        if(currentTypeJ != elementTypeJ)
+                        {
+                            AFB_ERROR("Property Value Type is wrong");
+                            return AHL_POLICY_REJECT; 
+                        }
+                        foundProperty = 1;
+                        break;   
+                    }
+                }
+            }                        
+        }
+    }
+
+    if(foundProperty== 0)
     {
         AFB_ERROR("Can't find property %s, request will be rejected", propertyName);
-        return AHL_POLICY_REJECT; 
+        return AHL_POLICY_REJECT;  
     }
-
-    //Get JsonObjectype
-    json_type currentjType = json_object_get_type((json_object*)key_value);
-    json_type newjType = json_object_get_type(propValueJ);
-
-    //Apply policy on set property if needed here
-    //Here we only validate that the type is the same
-    if(currentjType != newjType)
-    {
-        AFB_ERROR("Property Value Type is wrong");
-        return AHL_POLICY_REJECT; 
-    }
-
 
     //Create a new Json Object    
     json_object *pEventDataJ = NULL;
     err = wrap_json_pack(&pEventDataJ,"{s:s,s:i,s:i,s:s,s:o,s:s}",
                         "event_name", AHL_ENDPOINT_PROPERTY_EVENT,
-                        "endpoint_id", EndpointInfo.endpointID, 
-                        "endpoint_type", EndpointInfo.type,
+                        "endpoint_id", Endpoint.endpointID, 
+                        "endpoint_type", Endpoint.type,
                         "property_name", propertyName,
                         "value",propValueJ, 
-                        "audio_role", EndpointInfo.pRoleName);
+                        "audio_role", Endpoint.pRoleName);
     if(err)
     {
         AFB_ERROR("Unable to pack property event");        
@@ -988,67 +1011,95 @@ int Policy_PostAction(json_object *pPolicyActionJ)
     return AHL_POLICY_ACCEPT;
 }
 
-int Policy_Endpoint_Init(json_object *pPolicyEndpointJ)
+int Policy_Endpoint_Init(json_object *pInPolicyEndpointJ,json_object **pOutPolicyEndpointJ)
 {
-    EndpointInfoT EndpointInfo;
-  
-    int err = PolicyCtxJSONToEndpoint(pPolicyEndpointJ, &EndpointInfo);
-    if(err == AHL_POLICY_UTIL_FAIL)
-    {
-        return AHL_POLICY_REJECT;     
-    }
-
-    if (EndpointInfo.deviceURIType != DEVICEURITYPE_NOT_ALSA) {
-        // Update Hal Name
-        err = RetrieveAssociatedHALAPIName(&EndpointInfo);
-        if (err) {
-            AFB_ERROR("HAL not found for Device %s", EndpointInfo.gsDeviceName);
-            return AHL_POLICY_REJECT;     
-        }
-
-        //Set Init Volume
-        StreamConfigT StreamConfig;
-        getStreamConfig(EndpointInfo.pRoleName, &StreamConfig);
-        err = PolicySetVolume(EndpointInfo.endpointID, 
-                            EndpointInfo.type,
-                            EndpointInfo.gsHALAPIName, 
-                            EndpointInfo.pRoleName, 
-                            EndpointInfo.deviceURIType, 
-                            StreamConfig.iVolumeInit,
-                            false);
-        if(err) {                                
-            return AHL_POLICY_REJECT;     
-        }
-    }
-
-    // Test example
-    Add_Endpoint_Property_Int(&EndpointInfo,AHL_PROPERTY_EQ_LOW,3);
-    Add_Endpoint_Property_Int(&EndpointInfo,AHL_PROPERTY_EQ_MID,0);
-    Add_Endpoint_Property_Int(&EndpointInfo,AHL_PROPERTY_EQ_HIGH,6);
-    Add_Endpoint_Property_Int(&EndpointInfo,AHL_PROPERTY_BALANCE,0);
-    Add_Endpoint_Property_Int(&EndpointInfo,AHL_PROPERTY_FADE,30);
-    Add_Endpoint_Property_String(&EndpointInfo,"preset_name","flat");
-
-
-    gpointer *key_value = g_hash_table_lookup(EndpointInfo.pPropTable,AHL_PROPERTY_BALANCE);
-    if(key_value == NULL)
-    {
-        AFB_ERROR("Can't find property %s, request will be rejected", AHL_PROPERTY_BALANCE);
-        return AHL_POLICY_REJECT; 
-    }
-
-    //Create a new Json Object
-    json_object *pNewPolicyEndpointJ = NULL;
-    err = PolicyEndpointStructToJSON(&EndpointInfo, &pNewPolicyEndpointJ);
-    if (err == AHL_POLICY_UTIL_FAIL)
-    {
+    endpointID_t endpointID = AHL_UNDEFINED;
+    EndpointTypeT endpointType = ENDPOINTTYPE_MAXVALUE;
+    DeviceURITypeT deviceURIType = DEVICEURITYPE_MAXVALUE;
+    char * pRoleName = NULL;
+    int iAlsaCardNumber = AHL_UNDEFINED;
+    char * pDeviceName = NULL;
+    int err = wrap_json_unpack(pInPolicyEndpointJ,"{s:i,s:i,s:i,s:s,s:i,s:s}",
+                            "endpoint_id",&endpointID,
+                            "endpoint_type",&endpointType,
+                            "device_uri_type",&deviceURIType,
+                            "audio_role",&pRoleName,
+                            "alsa_cardNum", &iAlsaCardNumber,
+                            "device_name", &pDeviceName ); 
+    if (err) {
+        AFB_ERROR("Unable to unpack JSON endpoint, =%s", wrap_json_get_error_string(err));
         return AHL_POLICY_REJECT;
-    } 
-    json_object *paramJ= json_object_new_string(AHL_ENDPOINT_INIT_EVENT);
-    json_object_object_add(pNewPolicyEndpointJ, "event_name", paramJ);
+    }
 
-    //Raise Event to update HLB
-    audiohlapi_raise_event(pNewPolicyEndpointJ);
+    StreamConfigT StreamConfig;
+    getStreamConfig(pRoleName, &StreamConfig);
+
+    char * pDisplayName = NULL;
+    char * pHALName = NULL;
+    int iAllocString = 0;
+    if (deviceURIType != DEVICEURITYPE_NOT_ALSA) {
+        // Update Hal Name
+
+        err = RetrieveAssociatedHALAPIName(iAlsaCardNumber,&pDisplayName,&pHALName);
+        if (err) {
+            AFB_WARNING("HAL not found for Device %s", pDeviceName);            
+            pDisplayName = g_strdup(AHL_POLICY_UNDEFINED_DISPLAYNAME);
+            pHALName = g_strdup(AHL_POLICY_UNDEFINED_HALNAME);
+            iAllocString = 1;
+        }
+        else
+        {
+            //Set Init Volume
+            err = PolicySetVolume(endpointID, 
+                                endpointType,
+                                pHALName, 
+                                pRoleName, 
+                                deviceURIType, 
+                                StreamConfig.iVolumeInit,
+                                true); // Do not raise event and no volume ramp
+            if(err) {                                
+                return AHL_POLICY_REJECT;     
+            }
+        }
+    }
+    else {
+        // Set display / HAL for non ALSA devices (default)
+        pDisplayName = g_strdup(AHL_POLICY_UNDEFINED_DISPLAYNAME);
+        pHALName = g_strdup(AHL_POLICY_UNDEFINED_HALNAME);
+        iAllocString = 1;
+    }
+
+
+    // Populate special device property (TODO: Should be obtained from HAL)
+    // if (strcasecmp(gsHALAPIName,"Device")==0)
+    // {
+            // Create json object for PropTable
+            json_object *pPropTableJ = json_object_new_array();
+            Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_EQ_LOW,3);
+            Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_EQ_MID,0);
+            Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_EQ_HIGH,6);
+            Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_BALANCE,0);
+            Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_FADE,30);
+            Add_Endpoint_Property_String(pPropTableJ,"preset_name","flat");
+    // }
+ 
+    err = wrap_json_pack(pOutPolicyEndpointJ,"{s:i,s:s,s:s,s:o}",
+                    "init_volume",StreamConfig.iVolumeInit,
+                    "display_name",pDisplayName,
+                    "hal_name",pHALName,
+                    "property_table",pPropTableJ
+                    );
+    if (err) {
+        AFB_ERROR("Unable to pack JSON endpoint, =%s", wrap_json_get_error_string(err));
+        return AHL_POLICY_REJECT;
+    }
+
+    if (iAllocString) {
+        g_free(pDisplayName);
+        g_free(pHALName);
+    }
+
+    // TODO: Future policy binding to return request response with pOutPolicyEndpointJ
 
     return AHL_POLICY_ACCEPT; // No errors
 }

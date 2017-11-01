@@ -173,7 +173,7 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
         snd_ctl_close(ctlHandle);
         return 1;
     }
-    out_pEndpointInfo->gsDeviceName = g_strdup(pCardName); 
+    g_strlcpy(out_pEndpointInfo->gsDeviceName,pCardName,AHL_STR_MAX_LENGTH); 
 
     snd_ctl_close(ctlHandle);
 
@@ -193,6 +193,20 @@ EndpointInfoT * InitEndpointInfo()
     pEndpointInfo->format.sampleRate = AHL_UNDEFINED;
     pEndpointInfo->format.numChannels = AHL_UNDEFINED;
     pEndpointInfo->format.sampleType = AHL_FORMAT_UNKNOWN;
+    // Assigned by device enumeration
+    pEndpointInfo->gsDeviceName = malloc(AHL_STR_MAX_LENGTH*sizeof(char));
+    memset(pEndpointInfo->gsDeviceName,0,AHL_STR_MAX_LENGTH*sizeof(char));
+    pEndpointInfo->gsDeviceDomain = malloc(AHL_STR_MAX_LENGTH*sizeof(char));
+    memset(pEndpointInfo->gsDeviceDomain,0,AHL_STR_MAX_LENGTH*sizeof(char));
+    pEndpointInfo->pRoleName = malloc(AHL_STR_MAX_LENGTH*sizeof(char));
+    memset(pEndpointInfo->pRoleName,0,AHL_STR_MAX_LENGTH*sizeof(char));
+    pEndpointInfo->gsDeviceURI = malloc(AHL_STR_MAX_LENGTH*sizeof(char));
+    memset(pEndpointInfo->gsDeviceURI,0,AHL_STR_MAX_LENGTH*sizeof(char));
+    // Assigned by policy initialization
+    pEndpointInfo->gsDisplayName = malloc(AHL_STR_MAX_LENGTH*sizeof(char));
+    memset(pEndpointInfo->gsDisplayName,0,AHL_STR_MAX_LENGTH*sizeof(char));
+    pEndpointInfo->gsHALAPIName = malloc(AHL_STR_MAX_LENGTH*sizeof(char));
+    memset(pEndpointInfo->gsHALAPIName,0,AHL_STR_MAX_LENGTH*sizeof(char));
     pEndpointInfo->pPropTable = g_hash_table_new(g_str_hash, g_str_equal);
     return pEndpointInfo;
 }
@@ -200,12 +214,12 @@ EndpointInfoT * InitEndpointInfo()
 void TermEndpointInfo( EndpointInfoT * out_pEndpointInfo )
 {
     #define SAFE_FREE(__ptr__) if(__ptr__) g_free(__ptr__); __ptr__ = NULL;
-    SAFE_FREE(out_pEndpointInfo->gsDeviceName);
-    SAFE_FREE(out_pEndpointInfo->gsDisplayName);
+    SAFE_FREE(out_pEndpointInfo->gsDeviceName);  
     SAFE_FREE(out_pEndpointInfo->gsDeviceDomain);
     SAFE_FREE(out_pEndpointInfo->pRoleName);
     SAFE_FREE(out_pEndpointInfo->gsDeviceURI);
     SAFE_FREE(out_pEndpointInfo->gsHALAPIName);
+    SAFE_FREE(out_pEndpointInfo->gsDisplayName);
 
     if (out_pEndpointInfo->pPropTable) {
         // Free json_object for all property values
@@ -258,10 +272,10 @@ int EnumerateDevices(json_object * in_jDeviceArray, char * in_pAudioRole, Endpoi
         
         // non ALSA URI are simply passed to application (no validation) at this time 
         // In Non ALSA case devices in config are assumed to be available, if not application can fallback on explicit device selection 
-        pEndpointInfo->gsDeviceName = g_strdup(pDeviceURIPCM); 
-        pEndpointInfo->gsDeviceDomain = g_strdup(pDeviceURIDomain);
-        pEndpointInfo->gsDeviceURI = g_strdup(pDeviceURIPCM);
-        pEndpointInfo->pRoleName = g_strdup(in_pAudioRole);
+        g_strlcpy(pEndpointInfo->gsDeviceName,pDeviceURIPCM,AHL_STR_MAX_LENGTH); 
+        g_strlcpy(pEndpointInfo->gsDeviceDomain,pDeviceURIDomain,AHL_STR_MAX_LENGTH);
+        g_strlcpy(pEndpointInfo->gsDeviceURI,pDeviceURIPCM,AHL_STR_MAX_LENGTH);
+        g_strlcpy(pEndpointInfo->pRoleName ,in_pAudioRole,AHL_STR_MAX_LENGTH);
         
         g_free(pFullDeviceURICopy);
         pFullDeviceURICopy = NULL;
@@ -315,11 +329,6 @@ int EnumerateDevices(json_object * in_jDeviceArray, char * in_pAudioRole, Endpoi
 
         pEndpointInfo->endpointID = in_deviceType == ENDPOINTTYPE_SOURCE ? CreateNewSourceID() : CreateNewSinkID();
         pEndpointInfo->type = in_deviceType;
-        // Assigned by policy initialization
-        pEndpointInfo->gsDisplayName = malloc(AHL_STR_MAX_LENGTH*sizeof(char));
-        memset(pEndpointInfo->gsDisplayName,0,AHL_STR_MAX_LENGTH*sizeof(char));
-        pEndpointInfo->gsHALAPIName = malloc(AHL_STR_MAX_LENGTH*sizeof(char));
-        memset(pEndpointInfo->gsDisplayName,0,AHL_STR_MAX_LENGTH*sizeof(char));
 
         // add to structure to list of available devices
         g_ptr_array_add(out_pEndpointArray, pEndpointInfo);
