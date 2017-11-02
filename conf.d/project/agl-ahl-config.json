@@ -7,7 +7,6 @@
     "audio_roles": [
         {
             "name": "Warning",
-            "id": 0,
             "description": "Safety-relevant or critical alerts/alarms",
             "priority": 100,
             "output": [
@@ -23,7 +22,6 @@
         },
         {
             "name": "Guidance",
-            "id": 1,
             "description": "Important user information where user action is expected (e.g. navigation instruction)",
             "priority": 25,
             "output": [
@@ -39,7 +37,6 @@
         },
         {
             "name": "Notification",
-            "id": 2,
             "description": "HMI or else notifications (e.g. touchscreen events, speech recognition on/off,...)",
             "priority": 0,
             "output": [
@@ -57,7 +54,6 @@
         },
         {
             "name": "Communication",
-            "id": 3,
             "description": "Voice communications (e.g. handsfree, speech recognition)",
             "priority": 50,
             "output": [
@@ -76,7 +72,6 @@
         },
         {
             "name": "Entertainment",
-            "id": 4,
             "description": "Multimedia content (e.g. tuner, media player, etc.)",
             "priority": 0,
             "output": [
@@ -87,7 +82,6 @@
         },
         {
             "name": "System",
-            "id": 5,
             "description": "System level content or development",
             "priority": 100,
             "output": [
@@ -100,7 +94,6 @@
         },
         {
             "name": "Startup",
-            "id": 6,
             "description": "Early (startup) sound",
             "priority": 100,
             "output": [
@@ -113,7 +106,6 @@
         },
         {
             "name": "Shutdown",
-            "id": 7,
             "description": "Late (shutdown) sound",
             "priority": 100,
             "output": [

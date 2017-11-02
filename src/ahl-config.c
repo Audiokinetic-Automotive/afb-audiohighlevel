@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <json-c/json.h>
 #include "wrap-json.h"
-
 #include "ahl-binding.h"
 
 extern AHLCtxT g_AHLCtx;
@@ -46,12 +44,12 @@ int ParseHLBConfig() {
     json_object * jHALList = NULL;
     char * policyModule = NULL;
     
-    // TODO: This should be retrieve from binding startup arguments
+    // TODO: This should be retrieved from binding startup arguments
     char configfile_path[256];
     if(getenv("AHL_CONFIG_FILE") == NULL)
     {
         AFB_ERROR("Please Set Environnement Variable AHL_CONFIG_FILE");  
-        return 1;  
+        return AHL_FAIL;  
     }
     
     sprintf(configfile_path, "%s", getenv("AHL_CONFIG_FILE")); 
@@ -62,13 +60,13 @@ int ParseHLBConfig() {
     if(config_JFile == NULL)
     {
         AFB_ERROR("Error: Can't open configuration file -> %s",configfile_path);
-        return 1;
+        return AHL_FAIL;
     }
 
     int err = wrap_json_unpack(config_JFile, "{s:s,s:s,s:o,s:o}", "version", &versionStr,"policy_module", &policyModule,"audio_roles",&jAudioRoles,"hal_list",&jHALList);
     if (err) {
         AFB_ERROR("Invalid configuration file -> %s", configfile_path);
-        return 1;
+        return AHL_FAIL;
     }
     AFB_INFO("High-level audio API version: %s", "1.0.0");
     AFB_INFO("Config version: %s", versionStr);
@@ -93,7 +91,7 @@ int ParseHLBConfig() {
             if( err != 0 )
             {
                 AFB_ERROR("Audio high level API could not set dependency on API: %s",pHAL);
-                return 1;
+                return AHL_FAIL;
             }
         }
     }
@@ -122,7 +120,7 @@ int ParseHLBConfig() {
                                     );
         if (err) {
             AFB_ERROR("Invalid audio role configuration : %s", json_object_to_json_string(jAudioRole));
-            return 1;
+            return AHL_FAIL;
         }
         
         if (jOutputDevices)
@@ -155,7 +153,7 @@ int ParseHLBConfig() {
             err = EnumerateDevices(jInputDevices,pRoleName,ENDPOINTTYPE_SOURCE,pRoleInfo->pSourceEndpoints);
             if (err) {
                 AFB_ERROR("Invalid input devices : %s", json_object_to_json_string(jInputDevices));
-                return 1;
+                return AHL_FAIL;
             }
         }
         // Sinks
@@ -164,15 +162,14 @@ int ParseHLBConfig() {
             err = EnumerateDevices(jOutputDevices,pRoleName,ENDPOINTTYPE_SINK,pRoleInfo->pSinkEndpoints);
             if (err) {
                 AFB_ERROR("Invalid output devices : %s", json_object_to_json_string(jOutputDevices));
-                return 1;
+                return AHL_FAIL;
             }
         }
 
         g_hash_table_insert(g_AHLCtx.policyCtx.pRoleInfo, pRoleInfo->pRoleName, pRoleInfo);
-
     }
 
     // Build lists of all device URI referenced in config file (input/output)    
     AFB_DEBUG ("Audio high-level - Parse high-level audio configuration done");
-    return 0;
+    return AHL_SUCCESS;
 }

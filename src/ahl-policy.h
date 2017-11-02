@@ -16,6 +16,7 @@
 
 #ifndef AHL_POLICY_INCLUDE
 #define AHL_POLICY_INCLUDE
+
 #include "ahl-policy-utils.h"
 
 #ifndef AHL_DISCONNECT_POLICY
@@ -26,6 +27,8 @@
 
 #define AHL_POLICY_UNDEFINED_HALNAME "UNDEFINED"
 #define AHL_POLICY_UNDEFINED_DISPLAYNAME "DeviceNotFound"
+
+#define AHL_POLICY_ALSA_API "alsacore"
 
 int  Policy_Endpoint_Init(json_object *pInPolicyEndpointJ,json_object **pOutPolicyEndpointJ);
 int  Policy_OpenStream(json_object *pStreamJ);
@@ -39,6 +42,8 @@ int  Policy_Init();
 void Policy_Term(); 
 void Policy_OnEvent(const char *evtname, json_object *eventJ);
 
+// TODO: To be replaced by AGL events once policy is isolated in its own binding
 extern void audiohlapi_raise_event(json_object * pEventDataJ);
+
 #endif // AHL_DISCONNECT_POLICY
 #endif // AHL_POLICY_INCLUDE

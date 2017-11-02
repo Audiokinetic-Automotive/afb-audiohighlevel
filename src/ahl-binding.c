@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 
@@ -22,8 +21,7 @@
 #include "ahl-apidef.h" // Generated from JSON OpenAPI
 #include "wrap-json.h"
 #include "ahl-policy.h"
-#include "ahl-policyJSON.h"
-#include "ahl-policy-utils.h"
+#include "ahl-json.h"
 
 // Global high-level binding context
 AHLCtxT g_AHLCtx; 
@@ -140,7 +138,6 @@ static RoleInfoT * GetRole(char * in_pAudioRoleName)
 }
 
 static int CloseStream(AHLClientCtxT * in_pClientCtx, streamID_t streamID,struct afb_req * pReq) {
-    // Call policy to verify whether creating a new audio stream is allowed in current context and possibly take other actions
     StreamInfoT * pStreamInfo = GetStream(streamID);
     if (pStreamInfo == NULL) {
         AFB_ERROR("Specified stream not currently active stream_id -> %d",streamID);
@@ -251,30 +248,28 @@ static int CheckStreamAccessControl(AHLClientCtxT * pClientCtx, streamID_t strea
 
 static int CreateEvents()
 {
-    int err = 0;
-
     g_AHLCtx.policyCtx.propertyEvent = afb_daemon_make_event(AHL_ENDPOINT_PROPERTY_EVENT);
-    err = !afb_event_is_valid(g_AHLCtx.policyCtx.propertyEvent);
+    int err = !afb_event_is_valid(g_AHLCtx.policyCtx.propertyEvent);
     if (err) {
         AFB_ERROR("Could not create endpoint property change event");
-        return err;
+        return AHL_FAIL;
     }
 
     g_AHLCtx.policyCtx.volumeEvent = afb_daemon_make_event(AHL_ENDPOINT_VOLUME_EVENT);
     err = !afb_event_is_valid(g_AHLCtx.policyCtx.volumeEvent);
     if (err) {
         AFB_ERROR("Could not create endpoint volume change event");
-        return err;
+        return AHL_FAIL;
     }
 
     g_AHLCtx.policyCtx.postActionEvent = afb_daemon_make_event(AHL_POST_ACTION_EVENT);
     err = !afb_event_is_valid(g_AHLCtx.policyCtx.postActionEvent);
     if (err) {
         AFB_ERROR("Could not create post action event call event");
-        return err;
+        return AHL_FAIL;
     }
 
-    return err;
+    return AHL_SUCCESS;
 }
 
 static void AhlBindingTerm()
@@ -358,42 +353,36 @@ static void AhlBindingTerm()
 // Binding initialization
 PUBLIC int AhlBindingInit()
 {
-    int err = 0;
-
     memset(&g_AHLCtx,0,sizeof(g_AHLCtx));
     
     // Register exit function
     atexit(AhlBindingTerm);
 
     // Create AGL Events
-    err = CreateEvents();
-    if(err)
-    {
-        //Error messages already reported inside CreateEvents
-        return err;
+    int err = CreateEvents();
+    if(err) {
+        // Error messages already reported inside CreateEvents
+        return AHL_FAIL;
     }
 
     // Parse high-level binding JSON configuration file (will build device lists)
     err = ParseHLBConfig();
-    if(err)
-    {
-        //Error messages already reported inside ParseHLBConfig
-        return err;
+    if(err) {
+        // Error messages already reported inside ParseHLBConfig
+        return AHL_FAIL;
     }
     
 #ifndef AHL_DISCONNECT_POLICY  
     // Policy initialization
     err = Policy_Init();
-    if(err == AHL_POLICY_REJECT)
-    {
+    if(err == AHL_POLICY_REJECT) {
         //Error messages already reported inside PolicyInit
-        return err;        
+        return AHL_FAIL;        
     }
 
-    // for all audio Roles
+    // Call policy for initalization of all source + sink endpoints for all audio Roles
     GHashTableIter iter;
     gpointer key, value;
-
     g_hash_table_iter_init (&iter, g_AHLCtx.policyCtx.pRoleInfo);
     while (g_hash_table_iter_next (&iter, &key, &value))
     {
@@ -415,15 +404,15 @@ PUBLIC int AhlBindingInit()
                     err = Policy_Endpoint_Init(pInPolicyEndpointJ,&pOutPolicyEndpointJ);
                     if (err == AHL_POLICY_REJECT) {
                         AFB_WARNING("Policy endpoint properties initalization failed for endpoint_id :%d type:%d",pCurEndpointInfo->endpointID, pCurEndpointInfo->type);                        
+                        // continue
                     }   
-                    json_object_put(pInPolicyEndpointJ);                 
-                    
+                    json_object_put(pInPolicyEndpointJ);                           
                     err = UpdateEndpointInfo(pCurEndpointInfo,pOutPolicyEndpointJ);
                     if (err) {
                         AFB_ERROR("Policy endpoint properties update failed for endpoint_id :%d type:%d",pCurEndpointInfo->endpointID, pCurEndpointInfo->type);                        
                         return AHL_FAIL;
                     }
-                    //json_object_put(pOutPolicyEndpointJ);  
+                    // json_object_put(pOutPolicyEndpointJ);  
                 }
             }
         }
@@ -445,7 +434,7 @@ PUBLIC int AhlBindingInit()
                     err = Policy_Endpoint_Init(pInPolicyEndpointJ,&pOutPolicyEndpointJ);
                     if (err == AHL_POLICY_REJECT) {
                         AFB_WARNING("Policy endpoint properties initalization failed for endpoint_id :%d type:%d",pCurEndpointInfo->endpointID, pCurEndpointInfo->type);                        
-                        //return AHL_FAIL;
+                        // continue
                     }
                     json_object_put(pInPolicyEndpointJ);
                     err = UpdateEndpointInfo(pCurEndpointInfo,pOutPolicyEndpointJ);
@@ -465,11 +454,11 @@ PUBLIC int AhlBindingInit()
     if(g_AHLCtx.policyCtx.pStreams == NULL)
     {
         AFB_ERROR("Unable to create Active Stream List");
-        return err;
+        return AHL_FAIL;
     }
 
     AFB_DEBUG("Audio high-level Binding success");
-    return err;
+    return AHL_SUCCESS;
 }
 
 PUBLIC void AhlOnEvent(const char *evtname, json_object *eventJ)
@@ -583,7 +572,6 @@ PUBLIC void audiohlapi_stream_open(struct afb_req req)
         // Assign a device based on configuration priority (first in the list for requested role and endpoint type)
         pEndpointInfo = g_ptr_array_index(pDeviceArray,0);
         endpointSelMode = ENDPOINTSELMODE_AUTO;
-        
     }
     else{
         endpointSelMode = ENDPOINTSELMODE_MANUAL;
@@ -659,6 +647,7 @@ PUBLIC void audiohlapi_stream_open(struct afb_req req)
     if (g_AHLCtx.policyCtx.pStreams)
         g_hash_table_insert( g_AHLCtx.policyCtx.pStreams, GINT_TO_POINTER(&pStreamInfo->streamID), pStreamInfo );
 
+    // Package and return stream information to client 
     JSONPublicPackageStream(pStreamInfo,&streamInfoJ);
 
     afb_req_success(req, streamInfoJ, "Stream info structure");
@@ -1075,7 +1064,6 @@ PUBLIC void audiohlapi_post_action(struct afb_req req)
     }
     json_object_get(pActionInfo);
     int policyAllowed = Policy_PostAction(pActionInfo); 
-    //int policyAllowed = Policy_PostAction(queryJ); 
     if (!policyAllowed)
     {
         afb_req_fail(req, "Audio policy violation", "Post sound action not allowed in current context");
@@ -1174,7 +1162,7 @@ PUBLIC void audiohlapi_raise_event(json_object * pEventDataJ)
         }
         EndpointInfoT * pEndpointInfo = GetEndpointInfoWithRole(endpointID,endpointType,pRole);
         // update property value
-        if (pEndpointInfo->pPropTable)
+        if ((pEndpointInfo!=NULL) && (pEndpointInfo->pPropTable!=NULL))
         {
             json_type jType = json_object_get_type(propValueJ);
             switch (jType) {
@@ -1216,9 +1204,16 @@ PUBLIC void audiohlapi_raise_event(json_object * pEventDataJ)
             AFB_ERROR("Requested audio role does not exist in current configuration -> %s", pAudioRole);
             return;
         }
-        EndpointInfoT * pEndpointInfo = GetEndpointInfoWithRole(endpointID,endpointType,pRole);
+        EndpointInfoT * pEndpointInfo = GetEndpointInfoWithRole(endpointID,endpointType,pRole);        
         // update volume value
-        pEndpointInfo->iVolume = iVolume;
+        if(pEndpointInfo)
+        {            
+            pEndpointInfo->iVolume = iVolume;
+        }
+        else
+        {
+            AFB_ERROR("Unable to find endpoint");
+        }
         // Remove event name from object
         json_object_object_del(pEventDataJ,"event_name");
         afb_event_push(g_AHLCtx.policyCtx.volumeEvent,pEventDataJ);

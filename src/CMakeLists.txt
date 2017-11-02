@@ -39,7 +39,7 @@ PKG_CHECK_MODULES(GLIB_PKG REQUIRED glib-2.0)
 PROJECT_TARGET_ADD(audiohighlevel)
 
     # Define project Targets
-    ADD_LIBRARY(${TARGET_NAME} MODULE ahl-binding.c ahl-deviceenum.c ahl-config.c ahl-policy-utils.c ahl-policy.c ahl-policyJSON.c)
+    ADD_LIBRARY(${TARGET_NAME} MODULE ahl-binding.c ahl-deviceenum.c ahl-config.c ahl-policy-utils.c ahl-policy.c ahl-json.c)
 
     # Generate API-v2 hat from OpenAPI json definition
     SET_TARGET_GENSKEL(${TARGET_NAME} ahl-apidef)

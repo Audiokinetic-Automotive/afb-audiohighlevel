@@ -17,10 +17,7 @@
 #ifndef AHL_POLICY_UTILS_INCLUDE
 #define AHL_POLICY_UTILS_INCLUDE
 
-#define AFB_BINDING_VERSION 2
 #include <json-c/json.h>
-#include <afb/afb-binding.h>
-#include <glib.h>
 
 #define AHL_POLICY_ACCEPT 1
 #define AHL_POLICY_REJECT 0
@@ -120,7 +117,6 @@ typedef enum EndpointSelectionMode {
     ENDPOINTSELMODEMAXVALUE,            // Enum count, keep at the end
 } EndpointSelectionModeT;
 
-
 typedef struct EndPointInterfaceInfo {
     endpointID_t    endpointID;         // Unique endpoint ID (per type)
     EndpointTypeT   type;               // Source or sink device
@@ -137,7 +133,6 @@ typedef struct EndPointInterfaceInfo {
     json_object     *pPropTableJ;       //Property Table           
 } EndPointInterfaceInfoT;
 
- 
 typedef struct StreamInterfaceInfo {
     streamID_t              streamID;           // Stream unique ID
     StreamStateT            streamState;        // Stream activity state
@@ -151,7 +146,7 @@ typedef struct StreamInterfaceInfo {
 void Add_Endpoint_Property_Double( json_object * io_pPropertyArray, char * in_pPropertyName, double in_dPropertyValue);
 void Add_Endpoint_Property_Int( json_object * io_pPropertyArray, char * in_pPropertyName, int in_iPropertyValue);
 void Add_Endpoint_Property_String( json_object * io_pPropertyArray, char * in_pPropertyName, const char * in_pPropertyValue);
-int EndpointToJSON(EndPointInterfaceInfoT * pEndpoint, json_object **ppEndpointJ);
+int F(EndPointInterfaceInfoT * pEndpoint, json_object **ppEndpointJ);
 int JSONToEndpoint(json_object *pEndpointJ, EndPointInterfaceInfoT * pStream);
 int StreamToJSON(StreamInterfaceInfoT * pPolicyStream, json_object **ppStreamJ);
 int JSONToStream(json_object *pStreamJ, StreamInterfaceInfoT * pPolicyStream);

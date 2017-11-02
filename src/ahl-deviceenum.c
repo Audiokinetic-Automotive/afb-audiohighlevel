@@ -14,16 +14,9 @@
  * limitations under the License.
  */
 
-#define _GNU_SOURCE
-#include <stdio.h>
-#include <string.h>
 #include <alsa/asoundlib.h>
 #include <alsa/pcm.h>
-#include <json-c/json.h>
-#include "wrap-json.h"
-
 #include "ahl-binding.h"
-#include "ahl-policy.h"
 
 extern AHLCtxT g_AHLCtx;
 
@@ -59,7 +52,7 @@ static int SeparateDomainFromDeviceURI( char * in_pDeviceURI, char ** out_pDomai
         AFB_ERROR("Error tokenizing device URI -> %s",in_pDeviceURI);
         return 1;
     }
-    return 0;
+    return AHL_SUCCESS;
 }
 
 static int IsAlsaDomain(const char * in_pDomainStr)
@@ -90,7 +83,6 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
     snd_pcm_info_t * pPcmInfo = NULL;
     int iAlsaRet = 0;
     const char * pCardName = NULL;
-    int retVal = 0;
     snd_ctl_t * ctlHandle = NULL;
 	snd_ctl_card_info_t * ctlInfo = NULL;
 
@@ -121,7 +113,7 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
     if (iAlsaRet < 0)
     {
         AFB_WARNING("Error retrieving PCM device info");
-        return 1;
+        return AHL_FAIL;
     }
 
     // get card number
@@ -129,7 +121,7 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
     if ( out_pEndpointInfo->alsaInfo.cardNum < 0 )
     {
         AFB_WARNING("No Alsa card number available");
-        return 1;
+        return AHL_FAIL;
     }
     
     // get device number
@@ -137,7 +129,7 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
     if ( out_pEndpointInfo->alsaInfo.deviceNum < 0 )
     {
         AFB_WARNING("No Alsa device number available");
-        return 1;
+        return AHL_FAIL;
     }
 
     // get sub-device number
@@ -145,7 +137,7 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
     if ( out_pEndpointInfo->alsaInfo.subDeviceNum < 0 )
     {
         AFB_WARNING("No Alsa subdevice number available");
-        return 1;
+        return AHL_FAIL;
     }
 
     char cardName[32];
@@ -154,7 +146,7 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
     if ( iAlsaRet < 0 )
     {
         AFB_WARNING("Could not open ALSA card control");
-        return 1;
+        return AHL_FAIL;
     }
 
 	iAlsaRet = snd_ctl_card_info(ctlHandle, ctlInfo);
@@ -162,7 +154,7 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
     {
         AFB_WARNING("Could not retrieve ALSA card info");
         snd_ctl_close(ctlHandle);
-        return 1;
+        return AHL_FAIL;
     }
 
     // Populate unique target card name 
@@ -171,13 +163,13 @@ static int FillALSAPCMInfo( snd_pcm_t * in_pPcmHandle, EndpointInfoT * out_pEndp
     {
         AFB_WARNING("No Alsa card name available");
         snd_ctl_close(ctlHandle);
-        return 1;
+        return AHL_FAIL;
     }
     g_strlcpy(out_pEndpointInfo->gsDeviceName,pCardName,AHL_STR_MAX_LENGTH); 
 
     snd_ctl_close(ctlHandle);
 
-    return retVal;
+    return AHL_SUCCESS;
 }
 
 EndpointInfoT * InitEndpointInfo()
@@ -250,7 +242,7 @@ int EnumerateDevices(json_object * in_jDeviceArray, char * in_pAudioRole, Endpoi
         char * pDeviceURIDomain = NULL;
         char * pFullDeviceURI = NULL;
         char * pDeviceURIPCM = NULL;
-        int err = 0;
+        int err = AHL_SUCCESS;
 
         json_object * jDevice = json_object_array_get_idx(in_jDeviceArray,i);
         if (jDevice == NULL) {
@@ -336,5 +328,5 @@ int EnumerateDevices(json_object * in_jDeviceArray, char * in_pAudioRole, Endpoi
     } // for all devices
 
     AFB_DEBUG ("Audio high-level - Enumerate devices done");
-    return 0;
+    return AHL_SUCCESS;
 }

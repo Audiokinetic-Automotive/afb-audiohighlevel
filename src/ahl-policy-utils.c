@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
+#define AFB_BINDING_VERSION 2
+#include <afb/afb-binding.h>
+
 #include "ahl-policy-utils.h"
 #include "wrap-json.h"
 #include <json-c/json.h>
-#include <glib.h>
 
 void Add_Endpoint_Property_Double( json_object * io_pPropertyArray, char * in_pPropertyName, double in_dPropertyValue)
 {
@@ -56,10 +58,9 @@ int EndpointToJSON(EndPointInterfaceInfoT * pEndpoint, json_object **ppEndpointJ
         AFB_ERROR("Invalid EndpointToJSON arguments");
         return AHL_POLICY_UTIL_FAIL;
     } 
-
     
-    //Create json object for Endpoint
-    int err= wrap_json_pack(ppEndpointJ, "{s:i,s:i,s:s,s:s,s:s,s:s,s:s,s:i,s:s,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s?o}",
+    // Create json object for Endpoint
+    int err = wrap_json_pack(ppEndpointJ, "{s:i,s:i,s:s,s:s,s:s,s:s,s:s,s:i,s:s,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s?o}",
                     "endpoint_id", pEndpoint->endpointID, 
                     "endpoint_type", pEndpoint->type,
                     "device_name", pEndpoint->gsDeviceName, 
@@ -94,7 +95,6 @@ int StreamToJSON(StreamInterfaceInfoT * pStream, json_object **ppStreamJ)
         return AHL_POLICY_UTIL_FAIL;
     }
 
-
     json_object *EndpointJ = NULL;
     int err = EndpointToJSON(&pStream->endpoint, &EndpointJ);
     if (err) {
@@ -102,7 +102,7 @@ int StreamToJSON(StreamInterfaceInfoT * pStream, json_object **ppStreamJ)
         return AHL_POLICY_UTIL_FAIL;
     }
 
-    //Create json object for stream
+    // Create json object for stream
     err = wrap_json_pack(ppStreamJ, "{s:i,s:i,s:i,s:s,s:i,s:i,s:o}",
                     "stream_id", pStream->streamID, 
                     "stream_state", pStream->streamState,
@@ -125,10 +125,9 @@ int StreamToJSON(StreamInterfaceInfoT * pStream, json_object **ppStreamJ)
 //pEndpointInterfaceInfo must be pre-allocated by the caller
 int JSONToEndpoint(json_object *pEndpointJ, EndPointInterfaceInfoT *pEndpoint)
 {
-
     if(pEndpointJ == NULL || pEndpoint == NULL)
     {
-        AFB_ERROR("Invalid arguments for InterfaceJSONToEndpoint");
+        AFB_ERROR("Invalid arguments for JSONToEndpoint");
         return AHL_POLICY_UTIL_FAIL;
     }
 
@@ -170,7 +169,7 @@ int JSONToStream(json_object *pStreamJ, StreamInterfaceInfoT * pStream)
     //Unpack StreamInfo
     json_object *pEndpointJ = NULL;
     AFB_WARNING("json object query=%s", json_object_get_string(pStreamJ));
-    int err=wrap_json_unpack(pStreamJ, "{s:i,s:i,s:i,s:s,s:i,s:i,s:o}",
+    int err = wrap_json_unpack(pStreamJ, "{s:i,s:i,s:i,s:s,s:i,s:i,s:o}",
                     "stream_id", &pStream->streamID, 
                     "stream_state", &pStream->streamState,
                     "stream_mute", &pStream->streamMute, 
@@ -185,9 +184,9 @@ int JSONToStream(json_object *pStreamJ, StreamInterfaceInfoT * pStream)
         return AHL_POLICY_UTIL_FAIL;
     }
 
-    int iRet = JSONToEndpoint(pEndpointJ,&pStream->endpoint);
-    if (iRet) {
-        return iRet;
+    err = JSONToEndpoint(pEndpointJ,&pStream->endpoint);
+    if (err) {
+        return AHL_POLICY_UTIL_FAIL;
     }
     return AHL_POLICY_UTIL_SUCCESS;
 }

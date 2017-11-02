@@ -17,13 +17,11 @@
 #ifndef AHL_BINDING_INCLUDE
 #define AHL_BINDING_INCLUDE
 
-#define AFB_BINDING_VERSION 2
-
 //#define AHL_DISCONNECT_POLICY // define for debugging HLB in standalone only
 
 #include <json-c/json.h>
 #include <glib.h>
-
+#define AFB_BINDING_VERSION 2
 #include <afb/afb-binding.h>
 #include "ahl-interface.h"
 #include "ahl-policy-utils.h"
