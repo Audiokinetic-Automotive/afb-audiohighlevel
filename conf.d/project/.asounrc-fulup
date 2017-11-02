@@ -1,0 +1,198 @@
+# 
+# Author: Fulup Ar Foll
+# Object: PCM hook type 
+#
+# Test  :  Note: Jabra_USB=hw:v1340
+#  Check SoundCard ==> speaker-test -Dhw:v1340   -c2 -twav
+#  Check MixerPCM  ==> speaker-test -DSpeakers   -c2 -twav 
+#  Check SoftVol   ==> speaker-test -DMusicPCM   -c2 -twav 
+#  Check Plugin    ==> speaker-test -DMultimedia -c2 -twav
+#  Check Plugin    ==> speaker-test -DNavigation -c2 -twav
+#
+#  MultiMedia aplay -DDMyNavPCM /usr/share/sounds/alsa/test.wav
+#
+# Bug/Feature: when softvol control is initialised from plugin and not
+#    from AGL binding. At 1st run ctl has invalid TLV and cannot be
+#    use. Bypass Solution: 
+#     * start audio-binder before playing sound (binding create control before softvol plugin)
+#     * run a dummy aplay -DMyNavPCM "" to get a clean control
+#
+# References: https://www.spinics.net/lists/alsa-devel/msg54235.html
+# --------------------------------------------------------------------
+
+# ------------------------------------------------------
+# Mixer PCM allow to play multiple stream simultaneously
+# ------------------------------------------------------
+pcm.Speakers { 
+    type dmix            
+    slave {pcm "hw:v1340"}  #Jabra Solmate 1
+    ipc_key 1001          # ipc_key should be unique to each dmix
+} 
+
+# -----------------------------------------------------
+#  Register ControllerHookPlugin (ToiBeFix fullpath)
+# -----------------------------------------------------
+pcm_hook_type.CtlHookPlugin {
+    install "AlsaInstallHook" 
+    lib "/home/fulup/Workspace/Audio-4a/alsa-4a/build/alsa-hook/policy_alsa_hook.so"
+}
+
+
+# -------------------------------------------------------
+# Define one Audio Virtual Channel per Audio Roles
+# -------------------------------------------------------
+pcm.MusicPCM {
+    type softvol
+
+    # Point Slave on HOOK for policies control
+    slave.pcm "Speakers"
+
+    # name should match with HAL definition
+    control.name  "Playback Multimedia"
+}
+
+pcm.NaviPCM {
+    type softvol
+
+    # Point Slave on HOOK for policies control
+    slave.pcm "Speakers"
+
+    # name should match with HAL definition
+    control.name  "Playback Navigation"
+}
+
+pcm.UrgentPCM {
+    type softvol
+
+    # Point Slave on HOOK for policies control
+    slave.pcm "Speakers"
+
+    # name should match with HAL definition
+    control.name  "Playback Emergency"
+}
+
+# ----------------------------------------------------
+# Define one hooked PCM channel per Audio Roles
+# ----------------------------------------------------
+pcm.Multimedia {
+    type hooks
+    slave {pcm "MusicPCM"}
+    hooks.0 {
+        comment "Defined used hook sharelib and provide arguments/config to install func"
+        type "CtlHookPlugin"
+        hook_args {
+
+            # print few log messages (default false)
+            verbose true 
+
+            # uri to audio-4a policy engine
+            uri="unix:/var/tmp/ahl-4a"
+
+            # timeout in ms (default 500)
+            timeout 5000
+
+            # force API synchronous mode
+            synchronous true
+
+            # api subcall to request a role
+            request {
+                stream_open "{'audio_role':'Entertainment', 'endpoint_type': 'sink'}"
+                set_stream_state  "{'state': 'running'}"
+            } 
+
+            # api subcall to request a role
+            release {
+                stream_close "{}"
+            } 
+   
+            # map AGL event on Unix signal. Search in event for json key=value
+            events {   
+                sig-02 {search music, value quit}
+                sig-31 {search event, value start}
+                sig-32 {search event, value start}
+            }
+        }
+    }
+}
+
+pcm.Navigation {
+    type hooks
+    slave {pcm "NaviPCM"}
+    hooks.0 {
+        comment "Defined used hook sharelib and provide arguments/config to install func"
+        type "CtlHookPlugin"
+        hook_args {
+
+            # print few log messages (default false)
+            verbose true 
+
+            # uri to audio-4a policy engine
+            uri="unix:/var/tmp/ahl-4a"
+
+            # timeout in ms (default 500)
+            timeout 5000
+
+            # force API synchronous mode
+            synchronous true
+
+            # api subcall to request a role
+            request {
+                stream_open "{'audio_role':'Guidance', 'endpoint_type': 'sink'}"
+                set_stream_state  "{'state': 'running'}"
+            } 
+
+            # api subcall to request a role
+            release {
+                release-role "{'uid':'alsa-hook-client'}"
+            } 
+   
+            # map AGL event on Unix signal. Search in event for json key=value
+            events {   
+                sig-02 {search navi, value quit}
+                sig-31 {search event, value start}
+                sig-32 {search event, value start}
+            }
+        }
+    }
+}
+
+pcm.Emergency {
+    type hooks
+    slave {pcm "UrgentPCM"}
+    hooks.0 {
+        comment "Defined used hook sharelib and provide arguments/config to install func"
+        type "CtlHookPlugin"
+        hook_args {
+
+            # print few log messages (default false)
+            verbose true 
+
+            # uri to audio-4a policy engine
+            uri="unix:/var/tmp/ahl-4a"
+
+            # timeout in ms (default 500)
+            timeout 5000
+
+            # force API synchronous mode
+            synchronous true
+
+            # api subcall to request a role
+            request {
+                stream_open "{'audio_role':'Emergency', 'endpoint_type': 'sink'}"
+                set_stream_state  "{'state': 'running'}"
+            } 
+
+            # api subcall to request a role
+            release {
+                release-role "{'uid':'alsa-hook-client'}"
+            } 
+   
+            # map AGL event on Unix signal. Search in event for json key=value
+            events {   
+                sig-02 {search navi, value quit}
+                sig-31 {search event, value start}
+                sig-32 {search event, value start}
+            }
+        }
+    }
+}
