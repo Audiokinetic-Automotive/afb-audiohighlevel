@@ -84,7 +84,7 @@ static char* CtlConfigSearch(const char *dirList, const char *prefix) {
 
 int ParseHLBConfig() {
     char * versionStr = NULL;
-    json_object * jAudioRoles = NUL L;
+    json_object * jAudioRoles = NULL;
     json_object * jHALList = NULL;
     char * policyModule = NULL;
     

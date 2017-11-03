@@ -27,7 +27,7 @@
 
 #ifndef AHL_DISCONNECT_POLICY
 
-#define AK_POLICY_DEMO  //For Audiokinetic demo only
+//#define AK_POLICY_DEMO  //For Audiokinetic demo only
 
 typedef struct StreamPolicyInfo {
     streamID_t          streamID;
