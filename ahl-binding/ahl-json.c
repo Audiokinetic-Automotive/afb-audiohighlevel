@@ -279,7 +279,7 @@ void JSONPublicPackageEndpoint(EndpointInfoT * pEndpointInfo,json_object **endpo
 
     json_object *pPropTableJ = NULL;
     EndpointPropTableToJSON(pEndpointInfo->pPropTable,&pPropTableJ);
-    json_object_object_add(*endpointInfoJ,"properties",pPropTableJ);
+    json_object_object_add(*endpointInfoJ,"property_table",pPropTableJ);
 }
  
 // Package only information that can useful to application clients when opening a stream

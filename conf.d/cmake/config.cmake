@@ -29,7 +29,6 @@ set(PROJECT_AUTHOR_MAIL "tvuong@audiokinetic.com")
 set(PROJECT_LICENCE "Apache-V2")
 set(PROJECT_LANGUAGES,"C")
 
-
 # Where are stored default templates files from submodule or subtree app-templates in your project tree
 # relative to the root project directory
 set(PROJECT_APP_TEMPLATES_DIR "conf.d/app-templates")
@@ -53,8 +52,7 @@ set(CONTROL_SUPPORT_LUA 1 CACHE BOOL "Active or not LUA Support")
 
 # PKG_CONFIG required packages
 # -----------------------------
-set (PKG_REQUIRED_LIST
-        glib-2.0
+set (PKG_REQUIRED_LIST    
 	alsa>=1.1.2
 	libsystemd>=222
 	libmicrohttpd>=0.9.55

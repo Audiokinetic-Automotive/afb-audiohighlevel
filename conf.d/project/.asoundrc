@@ -1,6 +1,6 @@
-
-
-##### AGL Conf #####
+#AGL Audio High Level ALSA configuration
+#This define 2 sounds card with 8 audio roles each
+#The alsa soft volume control name must match with the HAL Control Name
 pcm.SoftMixer { 
     type dmix 
     ipc_key 1024
@@ -10,9 +10,9 @@ pcm.SoftMixer {
     # Define target effective sound card (cannot be a plugin)
     slave { 
         pcm "hw:0"  # Main sound card
-        # periods 8 
-        period_size 1024 
+        channels 2
         buffer_size 4096
+        period_size 1024
     }
 
     # DMIX can only map two channels
@@ -30,10 +30,10 @@ pcm.SoftMixer_DriverHR {
 
     # Define target effective sound card (cannot be a plugin)
     slave { 
-        pcm "hw:1"  # Alternate sound card / dummy
-        # periods 8 
-        period_size 1024 
+        pcm "hw:3"  # Alternate sound card / dummy
+        channels 2
         buffer_size 4096
+        period_size 1024
     }
 
     # DMIX can only map two channels
@@ -51,10 +51,7 @@ pcm.SoftMixer_RSE {
 
     # Define target effective sound card (cannot be a plugin)
     slave { 
-        pcm "hw:2"  # Alternate sound card / dummy
-        # periods 8 
-        period_size 1024 
-        buffer_size 4096
+        pcm "hw:4"  # Alternate sound card / dummy
     }
 
     # DMIX can only map two channels
@@ -68,7 +65,7 @@ pcm.Entertainment_Main {
  type softvol
  slave.pcm "SoftMixer"
  control{
-   name "Entertainment_Vol"
+   name "Entertainment_Volume"
    card 0
  }
 }
@@ -77,7 +74,7 @@ pcm.Guidance_Main {
  type softvol
  slave.pcm "SoftMixer"
  control{
-   name "Guidance_Vol"
+   name "Guidance_Volume"
    card 0
  }
 }
@@ -86,7 +83,7 @@ pcm.Communications_Main {
  type softvol
  slave.pcm "SoftMixer"
  control{
-   name "Communications_Vol"
+   name "Communications_Volume"
    card 0
  }
 }
@@ -95,7 +92,7 @@ pcm.Notification_Main {
  type softvol
  slave.pcm "SoftMixer"
  control{
-   name "Notification_Vol"
+   name "Notification_Volume"
    card 0
  }
 }
@@ -104,7 +101,34 @@ pcm.Warning_Main {
  type softvol
  slave.pcm "SoftMixer"
  control{
-   name "Warning_Vol"
+   name "Warning_Volume"
+   card 0
+ }
+}
+
+pcm.System_Main {
+ type softvol
+ slave.pcm "SoftMixer"
+ control{
+   name "System_Volume"
+   card 0
+ }
+}
+
+pcm.Startup_Main {
+ type softvol
+ slave.pcm "SoftMixer"
+ control{
+   name "Startup_Volume"
+   card 0
+ }
+}
+
+pcm.Shutdown_Main {
+ type softvol
+ slave.pcm "SoftMixer"
+ control{
+   name "Shutdown_Volume"
    card 0
  }
 }
@@ -113,8 +137,8 @@ pcm.Entertainment_DriverHR {
  type softvol
  slave.pcm "SoftMixer_DriverHR"
  control{
-   name "Entertainment_Vol"
-   card 1
+   name "Entertainment_Volume"
+   card 3
  }
 }
 
@@ -122,8 +146,8 @@ pcm.Guidance_DriverHR {
  type softvol
  slave.pcm "SoftMixer_DriverHR"
  control{
-   name "Guidance_Vol"
-   card 1
+   name "Guidance_Volume"
+   card 3
  }
 }
 
@@ -131,8 +155,8 @@ pcm.Communications_DriverHR {
  type softvol
  slave.pcm "SoftMixer_DriverHR"
  control{
-   name "Communications_Vol"
-   card 1
+   name "Communications_Volume"
+   card 3
  }
 }
 
@@ -140,8 +164,8 @@ pcm.Notification_DriverHR {
  type softvol
  slave.pcm "SoftMixer_DriverHR"
  control{
-   name "Notification_Vol"
-   card 1
+   name "Notification_Volume"
+   card 3
  }
 }
 
@@ -149,16 +173,35 @@ pcm.Warning_DriverHR {
  type softvol
  slave.pcm "SoftMixer_DriverHR"
  control{
-   name "Warning_Vol"
-   card 1
+   name "Warning_Volume"
+   card 3
  }
 }
 
-pcm.Entertainment_RSE {
+
+pcm.System_DriverHR {
  type softvol
- slave.pcm "SoftMixer_RSE"
+ slave.pcm "SoftMixer_DriverHR"
  control{
-   name "Entertainment_Vol"
-   card 2
+   name "System_Volume"
+   card 3
+ }
+}
+
+pcm.Startup_DriverHR {
+ type softvol
+ slave.pcm "SoftMixer_DriverHR"
+ control{
+   name "Startup_Volume"
+   card 3
+ }
+}
+
+pcm.Shutdown_DriverHR {
+ type softvol
+ slave.pcm "SoftMixer_DriverHR"
+ control{
+   name "Shutdown_Volume"
+   card 3
  }
 }

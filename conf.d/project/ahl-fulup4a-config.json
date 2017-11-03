@@ -7,7 +7,6 @@
     "audio_roles": [
         {
             "name": "Guidance",
-            "id": 1,
             "description": "Important user information where user action is expected (e.g. navigation instruction)",
             "priority": 25,
             "output": [
@@ -16,8 +15,7 @@
             "interupt_behavior": "continue"
         },
         {
-            "name": "Emergency",
-            "id": 2,
+            "name": "Notification",
             "description": "HMI or else notifications (e.g. touchscreen events, speech recognition on/off,...)",
             "priority": 100,
             "output": [
@@ -27,7 +25,6 @@
         },
         {
             "name": "Entertainment",
-            "id": 3,
             "description": "Multimedia content (e.g. tuner, media player, etc.)",
             "priority": 0,
             "output": [

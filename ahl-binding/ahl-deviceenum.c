@@ -43,14 +43,14 @@ static int SeparateDomainFromDeviceURI( char * in_pDeviceURI, char ** out_pDomai
     if (*out_pDomain == NULL)
     {
         AFB_ERROR("Error tokenizing device URI -> %s",in_pDeviceURI);
-        return 1;
+        return AHL_FAIL;
     }
     // TODO: Validate domain is known string (e.g. ALSA,Pulse,GStreamer)
     *out_pDevice = strtok(NULL, ".");
     if (*out_pDevice == NULL)
     {
         AFB_ERROR("Error tokenizing device URI -> %s",in_pDeviceURI);
-        return 1;
+        return AHL_FAIL;
     }
     return AHL_SUCCESS;
 }

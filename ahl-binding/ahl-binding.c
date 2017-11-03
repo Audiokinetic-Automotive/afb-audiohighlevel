@@ -867,10 +867,17 @@ PUBLIC void audiohlapi_volume(struct afb_req req)
         json_object *paramJ= json_object_new_string(volumeStr);
         json_object_object_add(pPolicyEndpointJ, "arg_volume", paramJ);
 
-        int policyAllowed = Policy_SetVolume(pPolicyEndpointJ);
+        json_object * pPolicyVolumeReply = NULL;
+        int policyAllowed = Policy_SetVolume(pPolicyEndpointJ,&pPolicyVolumeReply);
         if (!policyAllowed)
         {
             afb_req_fail(req, "Audio policy violation", "Set volume not allowed in current context");
+            return;
+        }
+
+        err = wrap_json_unpack(pPolicyVolumeReply,"{s:i}","volume",&pEndpointInfo->iVolume);
+        if (err) {
+            afb_req_fail_f(req, "Invalid policy reply", "Policy volume change reply not a valid json object=%s", json_object_get_string(pPolicyVolumeReply));
             return;
         }
 #else
@@ -951,15 +958,28 @@ PUBLIC void audiohlapi_property(struct afb_req req)
         json_object_object_add(pPolicyEndpointJ, "arg_property_value", propValueJ);
 
         // Call policy to allow custom policy actions in current context
-        int policyAllowed = Policy_SetProperty(pPolicyEndpointJ);     
+        json_object * pPropertyReply = NULL;
+        int policyAllowed = Policy_SetProperty(pPolicyEndpointJ,&pPropertyReply);     
         if (!policyAllowed)
         {
             afb_req_fail(req, "Audio policy violation", "Set endpoint property not allowed in current context");
             return;
         }
+
+        json_object * pPropReplyValue = NULL;
+        err = wrap_json_unpack(pPropertyReply,"{s:o}","value",&pPropReplyValue);
+        if (err) {
+            afb_req_fail_f(req, "Invalid policy reply", "Policy property change reply not a valid json object=%s", json_object_get_string(pPropertyReply));
+            return;
+        }
+        if (pEndpointInfo->pPropTable && pPropReplyValue) {
+            json_object_get(pPropReplyValue);
+            g_hash_table_insert(pEndpointInfo->pPropTable, propertyName, pPropReplyValue);
+        }
     #else
         // Simulate that policy returns target state (accepted)
-        if (pEndpointInfo->pPropTable)
+        if (pEndpointInfo->pPropTable && propValueJ)
+            json_object_get(propValueJ);
             g_hash_table_insert(pEndpointInfo->pPropTable, propertyName, propValueJ);
     #endif
     }

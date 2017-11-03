@@ -23,6 +23,11 @@ PROJECT_TARGET_ADD(ahl-policy)
     # Define project Targets
     ADD_LIBRARY(${TARGET_NAME} STATIC ahl-policy.c)
 
+
+    if($ENV{AK_DEMO})    
+    add_definitions(-DAK_POLICY_DEMO)
+    endif()
+
     # Define target includes
     TARGET_INCLUDE_DIRECTORIES(${TARGET_NAME}
         PUBLIC ${GLIB_PKG_INCLUDE_DIRS}

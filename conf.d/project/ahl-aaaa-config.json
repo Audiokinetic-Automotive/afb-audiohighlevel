@@ -58,10 +58,10 @@
             "priority": 50,
             "output": [
                 "alsa.plug:Communications_Main",
-                "alsa.plug:Communications_DriverHR",
+                "alsa.plug:Communications_DriverHR"
             ],
             "input": [
-                "alsa.hw:0",
+                "alsa.hw:0"
             ],
             "actions": [
                 "bt_device_connected",
@@ -76,7 +76,7 @@
             "priority": 0,
             "output": [
                 "alsa.plug:Entertainment_Main",
-                "alsa.plug:Entertainment_DriverHR",
+                "alsa.plug:Entertainment_DriverHR"
             ],
             "interupt_behavior": "pause"
         },
