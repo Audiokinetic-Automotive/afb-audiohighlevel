@@ -79,3 +79,48 @@ pcm.Shutdown_Main {
    name "Shutdown_Volume"
  }
 }
+
+# ----------------------------------------------------
+# Define one hooked PCM channel per Audio Roles
+# ----------------------------------------------------
+pcm.Multimedia {
+    type hooks
+    slave {pcm "Entertainment_Main"}
+    hooks.0 {
+        comment "Defined used hook sharelib and provide arguments/config to install func"
+        type "CtlHookPlugin"
+        hook_args {
+
+            # print few log messages (default false)
+            verbose true 
+
+            # uri to audio-4a policy engine
+            uri="unix:/var/tmp/ahl-4a"
+
+            # timeout in ms (default 500)
+            timeout 5000
+
+            # force API synchronous mode
+            synchronous true
+
+            # api subcall to request a role
+            request {
+                stream_open "{'audio_role': 'entertainment', 'endpoint_type':'sink'}"
+                set_stream_state "{'state':'running'}"
+            } 
+
+            # api subcall to request a role
+            release {
+                stream_close "{}"
+            } 
+   
+            # map AGL event on Unix signal. Search in event for json key=value
+            events {   
+                sig-02 {search state_event, value 1}
+                sig-31 {search state_event, value 2}
+                sig-32 {search state_event, value 3}
+            }
+        }
+    }
+}
+
