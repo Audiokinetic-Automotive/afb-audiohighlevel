@@ -44,7 +44,68 @@
   </sourceRootList>
   <projectmakefile>build/Makefile</projectmakefile>
   <confs>
-    <conf name="Default" type="0">
+    <conf name="AHL-fulup4a" type="0">
+      <toolsSet>
+        <compilerSet>default</compilerSet>
+        <dependencyChecking>false</dependencyChecking>
+        <rebuildPropChanged>false</rebuildPropChanged>
+      </toolsSet>
+      <codeAssistance>
+        <buildAnalyzer>false</buildAnalyzer>
+      </codeAssistance>
+      <makefileType>
+        <makeTool>
+          <buildCommandWorkingDir>build</buildCommandWorkingDir>
+          <buildCommand>${MAKE} -f Makefile</buildCommand>
+          <cleanCommand>${MAKE} -f Makefile clean</cleanCommand>
+          <executablePath></executablePath>
+          <cTool>
+            <incDir>
+              <pElem>.</pElem>
+            </incDir>
+          </cTool>
+          <ccTool>
+            <incDir>
+              <pElem>.</pElem>
+            </incDir>
+          </ccTool>
+        </makeTool>
+        <preBuild>
+          <preBuildCommandWorkingDir>build</preBuildCommandWorkingDir>
+          <preBuildCommand>cmake ..</preBuildCommand>
+          <preBuildFirst>true</preBuildFirst>
+        </preBuild>
+      </makefileType>
+      <item path="afb-utilities/filescan-utils.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="afb-utilities/wrap-json.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="ahl-binding/ahl-binding.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="ahl-binding/ahl-config.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="ahl-binding/ahl-deviceenum.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="ahl-utilities/ahl-policy-utils.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="ahl-utilities/ahl-policy-utils.h" ex="false" tool="3" flavor2="0">
+      </item>
+      <item path="build/CMakeFiles/3.5.2/CompilerIdC/CMakeCCompilerId.c"
+            ex="false"
+            tool="0"
+            flavor2="0">
+      </item>
+      <item path="build/CMakeFiles/3.5.2/CompilerIdCXX/CMakeCXXCompilerId.cpp"
+            ex="false"
+            tool="1"
+            flavor2="0">
+      </item>
+      <item path="build/CMakeFiles/feature_tests.c" ex="false" tool="0" flavor2="0">
+      </item>
+      <item path="build/CMakeFiles/feature_tests.cxx" ex="false" tool="1" flavor2="0">
+      </item>
+    </conf>
+    <conf name="AHL-audio4a" type="0">
       <toolsSet>
         <compilerSet>default</compilerSet>
         <dependencyChecking>false</dependencyChecking>

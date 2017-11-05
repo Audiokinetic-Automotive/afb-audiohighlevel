@@ -46,7 +46,7 @@ static json_object* CtlConfigScan(const char *dirList, const char *prefix) {
     strncat(controlFile, GetBinderName(), CONTROL_MAXPATH_LEN);
 
     // search for default dispatch config file
-    json_object* responseJ = ScanForConfig(dirList, CTL_SCAN_RECURSIVE, controlFile, ".json");
+    json_object* responseJ = ScanForConfig(dirList, CTL_SCAN_RECURSIVE, controlFile, "-config.json");
 
     return responseJ;
 }
@@ -94,10 +94,10 @@ int ParseHLBConfig() {
     const char *configfile_path =CtlConfigSearch(dirList, "ahl-");
     if (!configfile_path) {
         AFB_ERROR("Error: No control-* config found invalid JSON %s ", dirList);
-        return 1;
+        return AHL_FAIL;
     }
 
-    AFB_INFO("High-level config file -> %s\n", configfile_path);
+    AFB_NOTICE("High-level config file -> %s\n", configfile_path);
 
     // Open configuration file
     json_object *config_JFile=json_object_from_file(configfile_path);

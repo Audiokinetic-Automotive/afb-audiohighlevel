@@ -1183,24 +1183,25 @@ void Policy_Term()
         g_ptr_array_free(g_PolicyCtx.pHALList,TRUE);
         g_PolicyCtx.pHALList = NULL;
     }
+    
 
-    for(int i=0; i<g_PolicyCtx.pSourceEndpoints->len; i++)
+    if (g_PolicyCtx.pSourceEndpoints) for(int i=0; i<g_PolicyCtx.pSourceEndpoints->len; i++)
     {
         EndPointPolicyInfoT * pCurEndpoint = &g_array_index(g_PolicyCtx.pSourceEndpoints,EndPointPolicyInfoT,i);    
         g_array_free(pCurEndpoint->streamInfo,TRUE);
         pCurEndpoint->streamInfo= NULL;
     }
 
-    for(int i=0; i<g_PolicyCtx.pSinkEndpoints->len; i++)
+    if (g_PolicyCtx.pSinkEndpoints) for(int i=0; i<g_PolicyCtx.pSinkEndpoints->len; i++)
     {
         EndPointPolicyInfoT * pCurEndpoint = &g_array_index(g_PolicyCtx.pSinkEndpoints,EndPointPolicyInfoT,i);    
         g_array_free(pCurEndpoint->streamInfo,TRUE);
         pCurEndpoint->streamInfo = NULL;
     }
     
-    g_array_free(g_PolicyCtx.pSourceEndpoints,TRUE);
+    if (g_PolicyCtx.pSourceEndpoints) g_array_free(g_PolicyCtx.pSourceEndpoints,TRUE);
     g_PolicyCtx.pSourceEndpoints = NULL;
-    g_array_free(g_PolicyCtx.pSinkEndpoints,TRUE);
+    if (g_PolicyCtx.pSinkEndpoints) g_array_free(g_PolicyCtx.pSinkEndpoints,TRUE);
     g_PolicyCtx.pSinkEndpoints = NULL;
 }
 

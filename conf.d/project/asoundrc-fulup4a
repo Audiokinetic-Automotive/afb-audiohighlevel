@@ -1,0 +1,81 @@
+#AGL Audio High Level ALSA configuration
+#This define 2 sounds card with 8 audio roles each
+#The alsa soft volume control name must match with the HAL Control Name
+
+pcm.SoftMixer { 
+    type dmix            
+    slave {pcm "hw:v1340"}  #Jabra Solmate 1
+    ipc_key 1001          # ipc_key should be unique to each dmix
+} 
+
+# -----------------------------------------------------
+#  Register ControllerHookPlugin (ToiBeFix fullpath)
+# -----------------------------------------------------
+pcm_hook_type.CtlHookPlugin {
+    install "AlsaInstallHook" 
+    lib "/home/fulup/Workspace/Audio-4a/alsa-4a/build/alsa-hook/policy_alsa_hook.so"
+}
+
+pcm.Entertainment_Main {
+ type softvol
+ slave.pcm "SoftMixer"
+ control{
+   name "Entertainment_Volume"
+ }
+}
+
+pcm.Guidance_Main {
+ type softvol
+ slave.pcm "SoftMixer"
+ control{
+   name "Guidance_Volume"
+ }
+}
+
+pcm.Communications_Main {
+ type softvol
+ slave.pcm "SoftMixer"
+ control{
+   name "Communications_Volume"
+ }
+}
+
+pcm.Notification_Main {
+ type softvol
+ slave.pcm "SoftMixer"
+ control{
+   name "Notification_Volume"
+ }
+}
+
+pcm.Warning_Main {
+ type softvol
+ slave.pcm "SoftMixer"
+ control{
+   name "Warning_Volume"
+ }
+}
+
+pcm.System_Main {
+ type softvol
+ slave.pcm "SoftMixer"
+ control{
+   name "System_Volume"
+ }
+}
+
+pcm.Startup_Main {
+ type softvol
+ slave.pcm "SoftMixer"
+ control{
+   name "Startup_Volume"
+ }
+}
+
+pcm.Shutdown_Main {
+ type softvol
+ slave.pcm "SoftMixer"
+ control{
+   name "Shutdown_Volume"
+ }
+}

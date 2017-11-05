@@ -13,7 +13,8 @@
             "onevent": "AhlOnEvent",
             "init": "AhlBindingInit",
             "scope": "",
-            "private": false
+            "private": false,
+            "noconcurrency": false
         }
     },
     "servers": [

@@ -3,7 +3,7 @@
     "policy_module": "AudioPolicy_v1",
     "description": "High-level binding configuration file",
     "note": "Devices and routings are always listed in order of priority (for device selection rules)",
-    "hal_list": ["ensoniq","usbaudio"],
+    "hal_list": ["ensoniq","usb-audio"],
     "audio_roles": [
         {
             "name": "Warning",

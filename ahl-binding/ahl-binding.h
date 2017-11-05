@@ -31,7 +31,8 @@
 #endif
 
 #define AHL_SUCCESS 0
-#define AHL_FAIL 1
+#define AHL_WARNING 1
+#define AHL_FAIL -1
 
 #define AHL_ACCESS_CONTROL_GRANTED 1
 #define AHL_ACCESS_CONTROL_DENIED 0
