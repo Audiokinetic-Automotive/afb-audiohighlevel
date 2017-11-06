@@ -100,7 +100,7 @@ if(IS_DIRECTORY $ENV{HOME}/opt/afb-monitoring)
 set(MONITORING_ALIAS "--alias=/monitoring:$ENV{HOME}/opt/afb-monitoring")
 endif()
 
-set(CLOSING_MESSAGE "Debug: afb-daemon --name=afb-audio4a --port=1234 --ws-server=unix:/var/tmp/ahl-4a --cntxtimeout=1 ${MONITORING_ALIAS} --binding=package/lib/afb-audiohighlevel.so --ldpaths=../../alsa-4a/build/package/lib:../../hal-sample-4a/build/package/lib --workdir=. --roothttp=../htdocs --token= --verbose ")
+set(CLOSING_MESSAGE "Debug: afb-daemon --name=afb-audio4a --port=1234 --ws-server=unix:/var/tmp/ahl-4a ${MONITORING_ALIAS} --binding=package/lib/afb-audiohighlevel.so --ldpaths=../../alsa-4a/build/package/lib:../../hal-sample-4a/build/package/lib --workdir=. --roothttp=../htdocs --token= --verbose ")
 
 
 # Optional location for config.xml.in
