@@ -108,7 +108,7 @@ PUBLIC void AhlOnEvent(const char *evtname, json_object *eventJ);
 // ahl-deviceenum.c
 int  EnumerateDevices(json_object * in_jDeviceArray, char * in_pAudioRole, EndpointTypeT in_deviceType, GPtrArray * out_pEndpointArray);
 EndpointInfoT * InitEndpointInfo();
-void TermEndpointInfo( EndpointInfoT * out_pEndpointInfo );
+void TermEndpointInfo( gpointer data );
 // ahl-config.c
 int  ParseHLBConfig();
 // ahl-policy.c

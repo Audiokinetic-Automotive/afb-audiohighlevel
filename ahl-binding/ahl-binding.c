@@ -301,24 +301,12 @@ static void AhlBindingTerm()
                     }
                 }
                 // Source endpoints
-                if (pRole->pSourceEndpoints) {
-                    for (int i = 0; i < pRole->pSourceEndpoints->len; i++)
-                    {
-                        EndpointInfoT * pEndpoint = g_ptr_array_remove_index( pRole->pSourceEndpoints, i );  // Free endpoint * is called by GLib
-                        if (pEndpoint) {
-                            TermEndpointInfo(pEndpoint);
-                        }
-                    }
+                if (pRole->pSourceEndpoints) {                    
+                    g_ptr_array_unref(pRole->pSourceEndpoints);
                 }
                 // Sink endpoints
                 if (pRole->pSinkEndpoints) {
-                    for (int i = 0; i < pRole->pSinkEndpoints->len; i++)
-                    {
-                        EndpointInfoT * pEndpoint = g_ptr_array_remove_index( pRole->pSinkEndpoints, i ); // Free endpoint * is called by GLib
-                        if (pEndpoint) {
-                            TermEndpointInfo(pEndpoint);
-                        }
-                    }
+                    g_ptr_array_unref(pRole->pSinkEndpoints);
                 }
                 free(pRole);
             }
@@ -455,8 +443,7 @@ PUBLIC int AhlBindingInit()
     {
         AFB_ERROR("Unable to create Active Stream List");
         return AHL_FAIL;
-    }
-
+    }   
     AFB_DEBUG("Audio high-level Binding success");
     return AHL_SUCCESS;
 }

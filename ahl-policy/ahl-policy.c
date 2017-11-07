@@ -45,7 +45,7 @@ typedef struct EndPointPolicyInfo {
     char *          pDeviceName;
     char *          pHalApiName; 
     int             iVolume;     //Current Volume            
-    GArray *        streamInfo; //List of playing or duck stream at a given endpoint
+    GPtrArray *    streamInfo; //List of playing or duck stream at a given endpoint
 } EndPointPolicyInfoT;
 
 typedef enum SystemState {
@@ -70,8 +70,8 @@ typedef struct StreamConfig {
 
 // Global Policy Local context
 typedef struct PolicyLocalCtx {
-    GArray *     pSourceEndpoints; // List of Source Endpoint with playing stream or interrupted stream
-    GArray *     pSinkEndpoints;   // List of Sink Endpoint with playing stream or interrupted stream
+    GPtrArray *  pSourceEndpoints; // List of Source Endpoint with playing stream or interrupted stream
+    GPtrArray *  pSinkEndpoints;   // List of Sink Endpoint with playing stream or interrupted stream
     GPtrArray *  pHALList;
     SystemStateT systemState;
 } PolicyLocalCtxT;
@@ -215,6 +215,7 @@ static int PolicySetVolume(int iEndpointID, int iEndpointType, char *pHalApiName
         audiohlapi_raise_event(eventDataJ);
      }
 
+
     return POLICY_SUCCESS; 
 }
 
@@ -320,7 +321,7 @@ static void PolicyPostStateEvent(int iStreamID, StreamEventT eventState)
 
 static EndPointPolicyInfoT *PolicySearchEndPoint(EndpointTypeT type, char *pDeviceName)
 {   
-    GArray *pcurEndpointArray = NULL;
+    GPtrArray *pcurEndpointArray = NULL;
 
     if(type==ENDPOINTTYPE_SINK)
     {
@@ -333,7 +334,7 @@ static EndPointPolicyInfoT *PolicySearchEndPoint(EndpointTypeT type, char *pDevi
 
     for(int i=0; i<pcurEndpointArray->len; i++)
     {
-        EndPointPolicyInfoT * pCurEndpoint = &g_array_index(pcurEndpointArray,EndPointPolicyInfoT,i);    
+        EndPointPolicyInfoT * pCurEndpoint = g_ptr_array_index(pcurEndpointArray,i);    
 
         if(strcasecmp(pCurEndpoint->pDeviceName,pDeviceName)==0)
         {
@@ -344,29 +345,97 @@ static EndPointPolicyInfoT *PolicySearchEndPoint(EndpointTypeT type, char *pDevi
     return NULL;
 }
 
+static void TerminateStreamPolicyInfo(gpointer data)
+ {
+    StreamPolicyInfoT *pStreamPolicyInfo = (StreamPolicyInfoT *)data;
+    if(pStreamPolicyInfo)
+    {     
+        if( pStreamPolicyInfo->pAudioRole)
+        {
+            free(pStreamPolicyInfo->pAudioRole);
+            pStreamPolicyInfo->pAudioRole = NULL;
+        }
+        g_slice_free(StreamPolicyInfoT, pStreamPolicyInfo);
+    }
+ }
+
+StreamPolicyInfoT *InitStreamPolicyInfo()
+ {
+    StreamPolicyInfoT *pStreamPolicyInfo = malloc(sizeof(StreamPolicyInfoT));        
+    if(pStreamPolicyInfo)
+    {     
+        memset(pStreamPolicyInfo,0,sizeof(StreamPolicyInfoT));        
+        pStreamPolicyInfo->pAudioRole = malloc(AHL_POLICY_STR_MAX_LENGTH*sizeof(char));                    
+    }
+    return pStreamPolicyInfo;
+ }
+
+
+ EndPointPolicyInfoT *InitEndPointPolicyInfo()
+ {
+    EndPointPolicyInfoT *pEndPointPolicyInfo = malloc(sizeof(EndPointPolicyInfoT));        
+    if(pEndPointPolicyInfo)
+    {     
+        memset(pEndPointPolicyInfo,0,sizeof(EndPointPolicyInfoT));        
+        pEndPointPolicyInfo->streamInfo = g_ptr_array_new_with_free_func (TerminateStreamPolicyInfo);
+        pEndPointPolicyInfo->pDeviceName = malloc(AHL_POLICY_STR_MAX_LENGTH*sizeof(char));
+        pEndPointPolicyInfo->pHalApiName = malloc(AHL_POLICY_STR_MAX_LENGTH*sizeof(char));
+    }
+
+    return pEndPointPolicyInfo;
+ }
+
+ static void  TerminateEndPointPolicyInfo(gpointer data)
+ {
+    EndPointPolicyInfoT *pEndPointPolicyInfo = (EndPointPolicyInfoT*)data;
+    if(pEndPointPolicyInfo)
+    {     
+        if( pEndPointPolicyInfo->pDeviceName)
+        {
+            free(pEndPointPolicyInfo->pDeviceName);
+        }
+        if(pEndPointPolicyInfo->pHalApiName)
+        {
+            free(pEndPointPolicyInfo->pHalApiName);
+        }
+        if(pEndPointPolicyInfo->streamInfo)
+        {            
+            g_ptr_array_unref(pEndPointPolicyInfo->streamInfo);            
+        }
+        g_slice_free(EndPointPolicyInfoT, pEndPointPolicyInfo);
+    }
+ }
+
+
 static int PolicyAddEndPoint(StreamInterfaceInfoT *pStreamInfo)
 {
     EndPointPolicyInfoT *pPolicyEndPoint = PolicySearchEndPoint(pStreamInfo->endpoint.type, pStreamInfo->endpoint.gsDeviceName);
     if(pPolicyEndPoint == NULL)
     {
         //create EndPoint and add playing stream
-        EndPointPolicyInfoT newEndPointPolicyInfo;        
-        newEndPointPolicyInfo.endpointID  = pStreamInfo->endpoint.endpointID;
-        newEndPointPolicyInfo.type        = pStreamInfo->endpoint.type;
-        newEndPointPolicyInfo.deviceType  = pStreamInfo->endpoint.deviceURIType;
-        newEndPointPolicyInfo.pDeviceName = strdup(pStreamInfo->endpoint.gsDeviceName);
-        newEndPointPolicyInfo.pHalApiName = strdup(pStreamInfo->endpoint.gsHALAPIName);
-        newEndPointPolicyInfo.iVolume = pStreamInfo->endpoint.iVolume;
-        newEndPointPolicyInfo.streamInfo = g_array_new(FALSE, TRUE, sizeof(StreamPolicyInfoT));
-
-        if(pStreamInfo->endpoint.type == ENDPOINTTYPE_SINK)
+        EndPointPolicyInfoT *pNewEndPointPolicyInfo=InitEndPointPolicyInfo();        
+        if(pNewEndPointPolicyInfo)
         {
-            g_array_append_val(g_PolicyCtx.pSinkEndpoints, newEndPointPolicyInfo);
+            pNewEndPointPolicyInfo->endpointID  = pStreamInfo->endpoint.endpointID;
+            pNewEndPointPolicyInfo->type        = pStreamInfo->endpoint.type;
+            pNewEndPointPolicyInfo->deviceType  = pStreamInfo->endpoint.deviceURIType;
+            g_strlcpy(pNewEndPointPolicyInfo->pDeviceName,pStreamInfo->endpoint.gsDeviceName,AHL_POLICY_STR_MAX_LENGTH); 
+            g_strlcpy(pNewEndPointPolicyInfo->pHalApiName,pStreamInfo->endpoint.gsHALAPIName,AHL_POLICY_STR_MAX_LENGTH); 
+            pNewEndPointPolicyInfo->iVolume = pStreamInfo->endpoint.iVolume;
+            if(pStreamInfo->endpoint.type == ENDPOINTTYPE_SINK)
+            {
+                g_ptr_array_add(g_PolicyCtx.pSinkEndpoints, pNewEndPointPolicyInfo);
+            }
+            else
+            {
+                g_ptr_array_add(g_PolicyCtx.pSourceEndpoints, pNewEndPointPolicyInfo);
+            }                                
         }
         else
         {
-            g_array_append_val(g_PolicyCtx.pSourceEndpoints, newEndPointPolicyInfo);
-        }            
+            AFB_ERROR("Unable to allocate memory for a new EndPointPolicyInfo");
+            return POLICY_FAIL;    
+        }
         
     }
     return POLICY_SUCCESS;    
@@ -374,47 +443,56 @@ static int PolicyAddEndPoint(StreamInterfaceInfoT *pStreamInfo)
 
 static int PolicyAddStream(EndPointPolicyInfoT *pCurrEndPointPolicy, StreamInterfaceInfoT *pStreamInfo)
 {
-    StreamPolicyInfoT newStreamPolicyInfo;
+    StreamPolicyInfoT *pNewStreamPolicyInfo = InitStreamPolicyInfo();
 
-    newStreamPolicyInfo.streamID = pStreamInfo->streamID;                    
-    newStreamPolicyInfo.RolePriority = pStreamInfo->iPriority;                    
-    newStreamPolicyInfo.pAudioRole = pStreamInfo->pRoleName;                    
-    newStreamPolicyInfo.interruptBehavior = pStreamInfo->eInterruptBehavior;                    
-    newStreamPolicyInfo.iDuckVolume = 0;                            
-    g_array_append_val(pCurrEndPointPolicy->streamInfo, newStreamPolicyInfo);                    
+    if(pNewStreamPolicyInfo == NULL)
+    {
+        return POLICY_FAIL;
+    }
+    pNewStreamPolicyInfo->streamID = pStreamInfo->streamID;                    
+    pNewStreamPolicyInfo->RolePriority = pStreamInfo->iPriority;      
+    g_strlcpy(pNewStreamPolicyInfo->pAudioRole,pStreamInfo->pRoleName,AHL_POLICY_STR_MAX_LENGTH);               
+    pNewStreamPolicyInfo->interruptBehavior = pStreamInfo->eInterruptBehavior;                    
+    pNewStreamPolicyInfo->iDuckVolume = 0;                            
+    g_ptr_array_add(pCurrEndPointPolicy->streamInfo, pNewStreamPolicyInfo);                    
     return POLICY_SUCCESS;    
 }
 
 static int PolicyRunningIdleTransition(EndPointPolicyInfoT *pCurrEndPointPolicy,StreamInterfaceInfoT * pStreamInfo)
 {
     int err=0;
-    if(pCurrEndPointPolicy == NULL || pCurrEndPointPolicy->streamInfo->len == 0)
+    if(pCurrEndPointPolicy == NULL || pCurrEndPointPolicy->streamInfo == NULL)
     {
         AFB_ERROR("StreamID not found in active endpoint when running to idle transition is requested");
         return POLICY_FAIL; 
     }
     // Search for the matching stream
-    for(int i=0; i<pCurrEndPointPolicy->streamInfo->len; i++)
+    int iNbStream=pCurrEndPointPolicy->streamInfo->len;
+    for(int i=0; i<iNbStream; i++)
     {
-        StreamPolicyInfoT currentPolicyStreamInfo = g_array_index(pCurrEndPointPolicy->streamInfo,StreamPolicyInfoT,i);
-        if(currentPolicyStreamInfo.streamID == pStreamInfo->streamID)
-        {
+        StreamPolicyInfoT *pCurrentPolicyStreamInfo = g_ptr_array_index(pCurrEndPointPolicy->streamInfo,i);
+        if(pCurrentPolicyStreamInfo->streamID == pStreamInfo->streamID)
+        {      
             //remove the current stream
-            g_array_remove_index(pCurrEndPointPolicy->streamInfo, i);            
-            if(pCurrEndPointPolicy->streamInfo->len > 0) //need to unduck
+            g_ptr_array_remove_index(pCurrEndPointPolicy->streamInfo, i);            
+            if((pCurrEndPointPolicy->streamInfo->len > 0) && (i==iNbStream-1)) //need to unduck
             {
-                //check the last element (always highest priority)
-                StreamPolicyInfoT HighPriorityStreamInfo = g_array_index(pCurrEndPointPolicy->streamInfo,StreamPolicyInfoT,pCurrEndPointPolicy->streamInfo->len-1);
-                switch(currentPolicyStreamInfo.interruptBehavior)
+                //check the next highest priority stream (last stream is alway higher priority)
+                StreamPolicyInfoT *pHighPriorityStreamInfo = g_ptr_array_index(pCurrEndPointPolicy->streamInfo,pCurrEndPointPolicy->streamInfo->len-1);
+                if(pHighPriorityStreamInfo == NULL)
+                {
+                    return POLICY_FAIL;
+                }
+                switch(pCurrentPolicyStreamInfo->interruptBehavior)
                 {
                     case INTERRUPTBEHAVIOR_CONTINUE:                                    
                         //unduck and set Volume back to original value
                         err = PolicySetVolume(pCurrEndPointPolicy->endpointID, 
                                              pCurrEndPointPolicy->type,
                                              pCurrEndPointPolicy->pHalApiName, 
-                                             HighPriorityStreamInfo.pAudioRole, 
+                                             pHighPriorityStreamInfo->pAudioRole, 
                                              pCurrEndPointPolicy->deviceType, 
-                                             HighPriorityStreamInfo.iDuckVolume,
+                                             pHighPriorityStreamInfo->iDuckVolume,
                                              true, // ramp volume
                                              true);// raise event
                         if(err)                
@@ -424,12 +502,12 @@ static int PolicyRunningIdleTransition(EndPointPolicyInfoT *pCurrEndPointPolicy,
                         
                         return POLICY_SUCCESS;                                            
                     case INTERRUPTBEHAVIOR_PAUSE:
-                        PolicyPostStateEvent(HighPriorityStreamInfo.streamID,STREAM_EVENT_RESUME);       
+                        PolicyPostStateEvent(pHighPriorityStreamInfo->streamID,STREAM_EVENT_RESUME);       
                         // unmute stream (safety net for legacy streams)
                         err = PolicySetVolume(pCurrEndPointPolicy->endpointID, 
                             pCurrEndPointPolicy->type,
                             pCurrEndPointPolicy->pHalApiName, 
-                            HighPriorityStreamInfo.pAudioRole, 
+                            pHighPriorityStreamInfo->pAudioRole, 
                             pCurrEndPointPolicy->deviceType, 
                             pCurrEndPointPolicy->iVolume, // restore volume
                             false, // ramp volume
@@ -440,16 +518,19 @@ static int PolicyRunningIdleTransition(EndPointPolicyInfoT *pCurrEndPointPolicy,
                         }           
                         return POLICY_SUCCESS;                                            
                     case INTERRUPTBEHAVIOR_CANCEL:
-                        PolicyPostStateEvent(HighPriorityStreamInfo.streamID,STREAM_EVENT_START);                        
+                        PolicyPostStateEvent(pHighPriorityStreamInfo->streamID,STREAM_EVENT_START);                        
                         return POLICY_SUCCESS;                                            
                     default:
                         AFB_ERROR("Unsupported Intterupt Behavior");
                         return POLICY_FAIL; 
                 } 
-            }            
+            } 
+            return POLICY_SUCCESS;            
         }
-    }      
-    return POLICY_SUCCESS;
+
+    }   
+    AFB_ERROR("StreamID not found in active endpoint when running to idle transition is requested");   
+    return POLICY_FAIL;
 }
 
 static int PolicyIdleRunningTransition(EndPointPolicyInfoT *pCurrEndPointPolicy, StreamInterfaceInfoT * pStreamInfo)
@@ -468,7 +549,7 @@ static int PolicyIdleRunningTransition(EndPointPolicyInfoT *pCurrEndPointPolicy,
     else //Interrupt case
     {
         //check the last element 
-        StreamPolicyInfoT *pCurrentActiveStreamInfo = &g_array_index(pCurrEndPointPolicy->streamInfo,StreamPolicyInfoT,pCurrEndPointPolicy->streamInfo->len-1);
+        StreamPolicyInfoT *pCurrentActiveStreamInfo = g_ptr_array_index(pCurrEndPointPolicy->streamInfo,pCurrEndPointPolicy->streamInfo->len-1);
         g_assert_nonnull(pCurrentActiveStreamInfo);
         if(pStreamInfo->iPriority >= pCurrentActiveStreamInfo->RolePriority)
         {
@@ -517,7 +598,7 @@ static int PolicyIdleRunningTransition(EndPointPolicyInfoT *pCurrEndPointPolicy,
                     break;
                 case INTERRUPTBEHAVIOR_CANCEL:
                     PolicyPostStateEvent(pCurrentActiveStreamInfo->streamID,STREAM_EVENT_STOP);                        
-                    g_array_remove_index(pCurrEndPointPolicy->streamInfo, pCurrEndPointPolicy->streamInfo->len-1);
+                    g_ptr_array_remove_index(pCurrEndPointPolicy->streamInfo, pCurrEndPointPolicy->streamInfo->len-1);
                     break;
                 default:
                     AFB_ERROR("Unsupported Intterupt Behavior");
@@ -542,7 +623,7 @@ static void PolicySpeedModify(int speed)
 {
     for(int i=0; i<g_PolicyCtx.pSinkEndpoints->len; i++)
     {
-        EndPointPolicyInfoT * pCurEndpoint = &g_array_index(g_PolicyCtx.pSinkEndpoints,EndPointPolicyInfoT,i);    
+        EndPointPolicyInfoT * pCurEndpoint = g_ptr_array_index(g_PolicyCtx.pSinkEndpoints,i);    
         if(pCurEndpoint == NULL)
         {
             AFB_WARNING("Sink Endpoint not found");
@@ -552,7 +633,7 @@ static void PolicySpeedModify(int speed)
         //check if active 
         if(pCurEndpoint->streamInfo->len > 0 )
         {
-            StreamPolicyInfoT * pCurStream = &g_array_index(pCurEndpoint->streamInfo,StreamPolicyInfoT,pCurEndpoint->streamInfo->len-1);            
+            StreamPolicyInfoT * pCurStream = g_ptr_array_index(pCurEndpoint->streamInfo,pCurEndpoint->streamInfo->len-1);            
             if(strcasecmp(pCurStream->pAudioRole,AHL_ROLE_ENTERTAINMENT)==0)
             {
                 if(speed > 30 && speed < 100)
@@ -595,6 +676,47 @@ static int RetrieveAssociatedHALAPIName(int iAlsaCardNumber,char ** out_pDisplay
     return POLICY_FAIL;
 }
 
+static void TerminateHalInfo(gpointer data)
+{
+    HalInfoT *pHalInfo = (HalInfoT*)data;
+    if(pHalInfo)
+    {
+        if(pHalInfo->pDevID)
+        {
+            free(pHalInfo->pDevID);
+            pHalInfo->pDevID = NULL;
+        }
+        if(pHalInfo->pAPIName)
+        {
+            free(pHalInfo->pAPIName);
+            pHalInfo->pAPIName = NULL;
+        }
+        if(pHalInfo->pDisplayName)
+        {
+            free(pHalInfo->pDisplayName);
+            pHalInfo->pDisplayName = NULL;
+        }
+        g_slice_free(HalInfoT, pHalInfo);
+    }
+}
+
+HalInfoT *InitHalInfo()
+{
+    HalInfoT *pHalInfo = (HalInfoT*)malloc(sizeof(HalInfoT));
+    if(pHalInfo == NULL)
+    {
+        AFB_ERROR("Unable to allocate memory for HalInfo");
+        return pHalInfo;
+    }
+    memset(pHalInfo,0,sizeof(HalInfoT));
+
+    pHalInfo->pDevID = malloc(AHL_POLICY_STR_MAX_LENGTH*sizeof(char));
+    pHalInfo->pAPIName = malloc(AHL_POLICY_STR_MAX_LENGTH*sizeof(char));
+    pHalInfo->pDisplayName = malloc(AHL_POLICY_STR_MAX_LENGTH*sizeof(char));  
+    return pHalInfo;
+}
+
+
 static int GetHALList(void)
 {
     json_object *j_response = NULL, *j_query = NULL;
@@ -621,21 +743,17 @@ static int GetHALList(void)
             AFB_ERROR("Could not retrieve devid string=%s", json_object_get_string(jHAL));
             return POLICY_FAIL;
         }
-
-        HalInfoT *pHalInfo = (HalInfoT*)malloc(sizeof(HalInfoT));
+        HalInfoT *pHalInfo = InitHalInfo();
         if(pHalInfo == NULL)
         {
             AFB_ERROR("Unable to allocate memory for HalInfo");
             return POLICY_FAIL;
         }
-
-        pHalInfo->pDevID = strdup(pDevIDStr);
-        pHalInfo->pAPIName = strdup(pAPIName);
-        pHalInfo->pDisplayName = strdup(pShortName);
-
+        g_strlcpy(pHalInfo->pDevID,pDevIDStr,AHL_POLICY_STR_MAX_LENGTH); 
+        g_strlcpy(pHalInfo->pAPIName,pAPIName,AHL_POLICY_STR_MAX_LENGTH);
+        g_strlcpy(pHalInfo->pDisplayName,pShortName,AHL_POLICY_STR_MAX_LENGTH);
         g_ptr_array_add( g_PolicyCtx.pHALList, pHalInfo);
     }
-
     return POLICY_SUCCESS;
 }
 
@@ -696,7 +814,13 @@ int Policy_CloseStream(json_object *pStreamJ)
     {
         return AHL_POLICY_REJECT;     
     }
-
+    //seach corresponding endpoint and gather information on it        
+    EndPointPolicyInfoT *pCurrEndPointPolicy = PolicySearchEndPoint(Stream.endpoint.type , Stream.endpoint.gsDeviceName);
+    if(pCurrEndPointPolicy)
+    {
+        //close the stream and handle unduck if need be
+        PolicyRunningIdleTransition(pCurrEndPointPolicy, &Stream);        
+    }
     return AHL_POLICY_ACCEPT; 
 }
 
@@ -1135,9 +1259,10 @@ int Policy_Init()
     memset(&g_PolicyCtx,0,sizeof(g_PolicyCtx));
 
     // Initialize Ressources
-    g_PolicyCtx.pSourceEndpoints = g_array_new(FALSE,TRUE,sizeof(EndPointPolicyInfoT));
-    g_PolicyCtx.pSinkEndpoints = g_array_new(FALSE,TRUE,sizeof(EndPointPolicyInfoT));    
-    g_PolicyCtx.pHALList = g_ptr_array_new_with_free_func(g_free);
+    g_PolicyCtx.pSourceEndpoints = g_ptr_array_new_with_free_func(TerminateEndPointPolicyInfo);
+    g_PolicyCtx.pSinkEndpoints = g_ptr_array_new_with_free_func(TerminateEndPointPolicyInfo);    
+    g_PolicyCtx.pHALList = g_ptr_array_new_with_free_func(TerminateHalInfo);
+
 
     //Require AlsaCore Dependency
     int err = afb_daemon_require_api_v2(AHL_POLICY_ALSA_API,1) ;
@@ -1175,34 +1300,23 @@ int Policy_Init()
 
     return AHL_POLICY_ACCEPT;
 }
- 
+
 void Policy_Term()
 {
     // Free Ressources
-    if (g_PolicyCtx.pHALList) {
-        g_ptr_array_free(g_PolicyCtx.pHALList,TRUE);
-        g_PolicyCtx.pHALList = NULL;
-    }
-    
-
-    if (g_PolicyCtx.pSourceEndpoints) for(int i=0; i<g_PolicyCtx.pSourceEndpoints->len; i++)
+    if(g_PolicyCtx.pHALList)
     {
-        EndPointPolicyInfoT * pCurEndpoint = &g_array_index(g_PolicyCtx.pSourceEndpoints,EndPointPolicyInfoT,i);    
-        g_array_free(pCurEndpoint->streamInfo,TRUE);
-        pCurEndpoint->streamInfo= NULL;
+        g_ptr_array_unref(g_PolicyCtx.pHALList);       
     }
 
-    if (g_PolicyCtx.pSinkEndpoints) for(int i=0; i<g_PolicyCtx.pSinkEndpoints->len; i++)
-    {
-        EndPointPolicyInfoT * pCurEndpoint = &g_array_index(g_PolicyCtx.pSinkEndpoints,EndPointPolicyInfoT,i);    
-        g_array_free(pCurEndpoint->streamInfo,TRUE);
-        pCurEndpoint->streamInfo = NULL;
+    if (g_PolicyCtx.pSourceEndpoints) 
+    {        
+        g_ptr_array_unref(g_PolicyCtx.pSourceEndpoints);         
     }
-    
-    if (g_PolicyCtx.pSourceEndpoints) g_array_free(g_PolicyCtx.pSourceEndpoints,TRUE);
-    g_PolicyCtx.pSourceEndpoints = NULL;
-    if (g_PolicyCtx.pSinkEndpoints) g_array_free(g_PolicyCtx.pSinkEndpoints,TRUE);
-    g_PolicyCtx.pSinkEndpoints = NULL;
+    if (g_PolicyCtx.pSinkEndpoints) 
+    {   
+        g_ptr_array_unref(g_PolicyCtx.pSinkEndpoints);             
+    }        
 }
 
 // For demo purpose only, should be listening to signal composer / CAN events instead

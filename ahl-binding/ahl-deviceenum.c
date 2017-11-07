@@ -203,31 +203,35 @@ EndpointInfoT * InitEndpointInfo()
     return pEndpointInfo;
 }
 
-void TermEndpointInfo( EndpointInfoT * out_pEndpointInfo )
+void TermEndpointInfo( gpointer data )
 {
+    EndpointInfoT * out_pEndpointInfo = (EndpointInfoT *)data;
     #define SAFE_FREE(__ptr__) if(__ptr__) g_free(__ptr__); __ptr__ = NULL;
-    SAFE_FREE(out_pEndpointInfo->gsDeviceName);  
-    SAFE_FREE(out_pEndpointInfo->gsDeviceDomain);
-    SAFE_FREE(out_pEndpointInfo->pRoleName);
-    SAFE_FREE(out_pEndpointInfo->gsDeviceURI);
-    SAFE_FREE(out_pEndpointInfo->gsHALAPIName);
-    SAFE_FREE(out_pEndpointInfo->gsDisplayName);
+    if(out_pEndpointInfo)
+    {
+        SAFE_FREE(out_pEndpointInfo->gsDeviceName);  
+        SAFE_FREE(out_pEndpointInfo->gsDeviceDomain);
+        SAFE_FREE(out_pEndpointInfo->pRoleName);
+        SAFE_FREE(out_pEndpointInfo->gsDeviceURI);
+        SAFE_FREE(out_pEndpointInfo->gsHALAPIName);
+        SAFE_FREE(out_pEndpointInfo->gsDisplayName);
 
-    if (out_pEndpointInfo->pPropTable) {
-        // Free json_object for all property values
-        GHashTableIter iter;
-        gpointer key, value;
-        g_hash_table_iter_init (&iter, out_pEndpointInfo->pPropTable);
-        while (g_hash_table_iter_next (&iter, &key, &value))
-        {
-            if (value)
-                json_object_put(value);
-        }
-        g_hash_table_remove_all(out_pEndpointInfo->pPropTable);
-        g_hash_table_destroy(out_pEndpointInfo->pPropTable);
-        out_pEndpointInfo->pPropTable = NULL;
-    }
-    // GLib automatically frees item when removed from the array
+        if (out_pEndpointInfo->pPropTable) {
+            // Free json_object for all property values
+            GHashTableIter iter;
+            gpointer key, value;
+            g_hash_table_iter_init (&iter, out_pEndpointInfo->pPropTable);
+            while (g_hash_table_iter_next (&iter, &key, &value))
+            {
+                if (value)
+                    json_object_put(value);
+            }
+            g_hash_table_remove_all(out_pEndpointInfo->pPropTable);
+            g_hash_table_destroy(out_pEndpointInfo->pPropTable);
+            out_pEndpointInfo->pPropTable = NULL;
+        }   
+        g_slice_free (EndpointInfoT, out_pEndpointInfo);     
+    }    
 }
 
 // For a given audio role

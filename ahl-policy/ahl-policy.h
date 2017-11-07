@@ -22,12 +22,12 @@
 #ifndef AHL_DISCONNECT_POLICY
 
 #define MAX_ACTIVE_STREAM_POLICY 30
+#define AHL_POLICY_STR_MAX_LENGTH 256
 #define POLICY_FAIL     1
 #define POLICY_SUCCESS  0
 
 #define AHL_POLICY_UNDEFINED_HALNAME "UNDEFINED"
 #define AHL_POLICY_UNDEFINED_DISPLAYNAME "DeviceNotFound"
-
 #define AHL_POLICY_ALSA_API "alsacore"
 
 int  Policy_Endpoint_Init(json_object *pInPolicyEndpointJ,json_object **pOutPolicyEndpointJ);

@@ -192,7 +192,7 @@ int ParseHLBConfig() {
         }
 
         // Sources
-        pRoleInfo->pSourceEndpoints = g_ptr_array_new_with_free_func(g_free);
+        pRoleInfo->pSourceEndpoints = g_ptr_array_new_with_free_func(TermEndpointInfo);
         if (iNumInDevices) {          
             err = EnumerateDevices(jInputDevices,pRoleName,ENDPOINTTYPE_SOURCE,pRoleInfo->pSourceEndpoints);
             if (err) {
@@ -201,7 +201,7 @@ int ParseHLBConfig() {
             }
         }
         // Sinks
-        pRoleInfo->pSinkEndpoints = g_ptr_array_new_with_free_func(g_free);
+        pRoleInfo->pSinkEndpoints = g_ptr_array_new_with_free_func(TermEndpointInfo);
         if (iNumOutDevices) { 
             err = EnumerateDevices(jOutputDevices,pRoleName,ENDPOINTTYPE_SINK,pRoleInfo->pSinkEndpoints);
             if (err) {
