@@ -18,15 +18,14 @@
 
 # Project Info
 # ------------------
-set(PROJECT_NAME afb-audiohighlevel)
-set(PROJECT_VERSION "0.1")
+set(PROJECT_NAME agl-service-audio-4a)
+set(PROJECT_VERSION "1.0")
 set(PROJECT_PRETTY_NAME "Audio High Level Binding")
-set(PROJECT_DESCRIPTION "Give an High Level Binding for all AGL applications")
-set(PROJECT_URL "https://github.com/Audiokinetic-Automotive/afb-audiohighlevel")
+set(PROJECT_DESCRIPTION "AGL High Level Interface for Audio")
 set(PROJECT_ICON "icon.png")
 set(PROJECT_AUTHOR "Tai, Vuong")
 set(PROJECT_AUTHOR_MAIL "tvuong@audiokinetic.com")
-set(PROJECT_LICENCE "Apache-V2")
+set(PROJECT_LICENCE "APL2.0")
 set(PROJECT_LANGUAGES,"C")
 
 # Where are stored default templates files from submodule or subtree app-templates in your project tree
@@ -90,7 +89,7 @@ set(COMPILE_OPTIONS
 #set(C_COMPILE_OPTIONS "" CACHE STRING "Compilation flags for C language.")
 #set(CXX_COMPILE_OPTIONS "" CACHE STRING "Compilation flags for C++ language.")
 #set(PROFILING_COMPILE_OPTIONS -g -O0 -pg -Wp,-U_FORTIFY_SOURCE CACHE STRING "Compilation flags for PROFILING build type.")
-set(DEBUG_COMPILE_OPTIONS -g -ggdb -Wp,-U_FORTIFY_SOURCE CACHE STRING "Compilation flags for DEBUG build type.")
+#set(DEBUG_COMPILE_OPTIONS -g -ggdb -Wp,-U_FORTIFY_SOURCE CACHE STRING "Compilation flags for DEBUG build type.")
 #set(CCOV_COMPILE_OPTIONS -g -O2 --coverage CACHE STRING "Compilation flags for CCOV build type.")
 #set(RELEASE_COMPILE_OPTIONS -g -O2 CACHE STRING "Compilation flags for RELEASE build type.")
 
@@ -107,6 +106,7 @@ set(CLOSING_MESSAGE "Debug: afb-daemon --name=afb-audio4a --port=1234 --ws-serve
 # -----------------------------------
 #set(WIDGET_ICON conf.d/wgt/${PROJECT_ICON} CACHE PATH "Path to the widget icon")
 #set(WIDGET_CONFIG_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/conf.d/wgt/config.xml.in CACHE PATH "Path to widget config file template (config.xml.in)")
+set(WIDGET_CONFIG_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/conf.d/wgt/config.xml.in)
 
 # Optional dependencies order
 # ---------------------------
