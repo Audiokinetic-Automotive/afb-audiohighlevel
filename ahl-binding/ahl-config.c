@@ -115,10 +115,28 @@ int ParseHLBConfig() {
     AFB_INFO("High-level audio API version: %s", "1.0.0");
     AFB_INFO("Config version: %s", versionStr);
     AFB_INFO("Policy module: %s", policyModule);
+    
+    int iHALListLength = 0;
+    int iNumberOfRoles = 0;
 
-    int iHALListLength = json_object_array_length(jHALList);
-    g_AHLCtx.policyCtx.pHALList = g_ptr_array_new_with_free_func(g_free);
-    int iNumberOfRoles = json_object_array_length(jAudioRoles);
+    if(jHALList)
+    {
+        json_type jTypeHalList = json_object_get_type(jHALList);
+        if(jTypeHalList ==json_type_array)
+        {
+            iHALListLength = json_object_array_length(jHALList);
+        }
+    }
+
+    if(jAudioRoles)
+    {
+        json_type jTypeAudioRole = json_object_get_type(jAudioRoles);
+        if(jTypeAudioRole ==json_type_array)
+        {
+            iNumberOfRoles = json_object_array_length(jAudioRoles);
+        }    
+    }
+    g_AHLCtx.policyCtx.pHALList = g_ptr_array_new_with_free_func(g_free);    
     g_AHLCtx.policyCtx.pRoleInfo = g_hash_table_new(g_str_hash, g_str_equal);
         
     for (int i = 0; i < iHALListLength; i++)
@@ -165,15 +183,25 @@ int ParseHLBConfig() {
         if (err) {
             AFB_ERROR("Invalid audio role configuration : %s", json_object_to_json_string(jAudioRole));
             return AHL_FAIL;
-        }
-        
+        }        
         if (jOutputDevices)
-            iNumOutDevices = json_object_array_length(jOutputDevices);
+        {
+            json_type jTypeOutputDevices = json_object_get_type(jOutputDevices);
+            if(jTypeOutputDevices == json_type_array)            
+                iNumOutDevices = json_object_array_length(jOutputDevices);
+        }            
         if (jInputDevices)
-            iNumInDevices = json_object_array_length(jInputDevices);
+        {
+            json_type jTypeInputDevices = json_object_get_type(jInputDevices);
+            if(jTypeInputDevices == json_type_array)
+                iNumInDevices = json_object_array_length(jInputDevices);
+        }            
         if (jActions)
-            iNumActions = json_object_array_length(jActions);
-
+        {
+            json_type jTypeActions = json_object_get_type(jActions);
+            if(jTypeActions == json_type_array)
+                iNumActions = json_object_array_length(jActions);
+        }            
         RoleInfoT * pRoleInfo = (RoleInfoT*) malloc(sizeof(RoleInfoT));
         memset(pRoleInfo,0,sizeof(RoleInfoT));
         pRoleInfo->pRoleName = g_strdup( pRoleName );

@@ -230,7 +230,6 @@ void TermEndpointInfo( gpointer data )
             g_hash_table_destroy(out_pEndpointInfo->pPropTable);
             out_pEndpointInfo->pPropTable = NULL;
         }   
-        g_slice_free (EndpointInfoT, out_pEndpointInfo);     
     }    
 }
 

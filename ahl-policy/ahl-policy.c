@@ -354,8 +354,7 @@ static void TerminateStreamPolicyInfo(gpointer data)
         {
             free(pStreamPolicyInfo->pAudioRole);
             pStreamPolicyInfo->pAudioRole = NULL;
-        }
-        g_slice_free(StreamPolicyInfoT, pStreamPolicyInfo);
+        }        
     }
  }
 
@@ -402,7 +401,6 @@ StreamPolicyInfoT *InitStreamPolicyInfo()
         {            
             g_ptr_array_unref(pEndPointPolicyInfo->streamInfo);            
         }
-        g_slice_free(EndPointPolicyInfoT, pEndPointPolicyInfo);
     }
  }
 
@@ -443,8 +441,7 @@ static int PolicyAddEndPoint(StreamInterfaceInfoT *pStreamInfo)
 
 static int PolicyAddStream(EndPointPolicyInfoT *pCurrEndPointPolicy, StreamInterfaceInfoT *pStreamInfo)
 {
-    StreamPolicyInfoT *pNewStreamPolicyInfo = InitStreamPolicyInfo();
-
+    StreamPolicyInfoT *pNewStreamPolicyInfo = InitStreamPolicyInfo();    
     if(pNewStreamPolicyInfo == NULL)
     {
         return POLICY_FAIL;
@@ -696,7 +693,6 @@ static void TerminateHalInfo(gpointer data)
             free(pHalInfo->pDisplayName);
             pHalInfo->pDisplayName = NULL;
         }
-        g_slice_free(HalInfoT, pHalInfo);
     }
 }
 
@@ -1217,18 +1213,16 @@ int Policy_Endpoint_Init(json_object *pInPolicyEndpointJ,json_object **pOutPolic
         iAllocString = 1;
     }
 
-    // Populate special device property (TODO: Should be obtained from HAL)
-    // if (strcasecmp(gsHALAPIName,"Device")==0)
-    // {
-            // Create json object for PropTable
-            json_object *pPropTableJ = json_object_new_array();
-            Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_EQ_LOW,3);
-            Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_EQ_MID,0);
-            Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_EQ_HIGH,6);
-            Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_BALANCE,0);
-            Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_FADE,30);
-            Add_Endpoint_Property_String(pPropTableJ,"preset_name","flat");
-    // }
+    // Create json object for PropTable
+    json_object *pPropTableJ = json_object_new_array();
+    //TODO Get Property from HAL 
+    //Below are example of property
+    /*Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_EQ_LOW,3);
+    Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_EQ_MID,0);
+    Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_EQ_HIGH,6);
+    Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_BALANCE,0);
+    Add_Endpoint_Property_Int(pPropTableJ,AHL_PROPERTY_FADE,30);
+    Add_Endpoint_Property_String(pPropTableJ,"preset_name","flat");*/
  
     err = wrap_json_pack(pOutPolicyEndpointJ,"{s:i,s:s,s:s,s:o}",
                     "init_volume",StreamConfig.iVolumeInit,
@@ -1276,11 +1270,8 @@ int Policy_Init()
     GetHALList();
 
     // TODO: Register events from low level / HAL for dynamic changes
-
     // Set System Normal for now, this should be set by an event 
     g_PolicyCtx.systemState = SYSTEM_NORMAL;
-
-
 
 #ifdef AK_POLICY_DEMO
     // Register audio backend events (TODO: should instead do this with signal composer with appropriate dependency)
@@ -1296,7 +1287,6 @@ int Policy_Init()
         return AHL_POLICY_REJECT;
     }
 #endif
-
 
     return AHL_POLICY_ACCEPT;
 }

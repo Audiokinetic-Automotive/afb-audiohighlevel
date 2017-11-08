@@ -8,7 +8,7 @@
     <script type="text/javascript" src="AudioBinding.js"></script>
 </head>
 
-<body onload="init('ahl-4a'); ep_type='sink' ; ar='Entertainment' ; ep_id=0 ; s_id=0 ; prop_val=0 ; vol_val='0' ; p_name='balance' ; st_state='idle' ; st_mute='off'">
+<body onload="init('ahl-4a'); ep_type='sink' ; ar='Entertainment' ; ep_id=0 ; s_id=0 ; prop_val=0 ; vol_val='0' ; p_name='balance' ; st_state='idle' ; st_mute=0">
 
     <button id="connected" onclick="init('ahl-4a');">Binder WS Fail</button> <br><br>
     <button id="monitoring" onclick="window.open('/monitoring/monitor.html','_monitor_audio')">Debug/Monitoring</a></button>
@@ -40,9 +40,9 @@
         <option value='paused'>Paused</option>
     </select><br>
     <b>Stream Mute State</b>
-    <select select_id='stream_mute' onclick='st_mute=this.value'>
-        <option selected value='off'>Unmuted</option>
-        <option value='on'>Muted</option>
+    <select select_id='stream_mute' onclick='st_mute=parseInt(this.value)'>
+        <option selected value='0'>Unmuted</option>
+        <option value='1'>Muted</option>
     </select><br>
     <b>Property</b>
     <select select_id='property_name_list' onclick='p_name=this.value'>

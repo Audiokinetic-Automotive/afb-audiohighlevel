@@ -164,11 +164,10 @@ int JSONToStream(json_object *pStreamJ, StreamInterfaceInfoT * pStream)
     {
         AFB_ERROR("Invalid arguments for InterfaceCtxJSONToStream");
         return AHL_POLICY_UTIL_FAIL;
-    }
+    } 
 
     //Unpack StreamInfo
-    json_object *pEndpointJ = NULL;
-    AFB_WARNING("json object query=%s", json_object_get_string(pStreamJ));
+    json_object *pEndpointJ = NULL;    
     int err = wrap_json_unpack(pStreamJ, "{s:i,s:i,s:i,s:s,s:i,s:i,s:o}",
                     "stream_id", &pStream->streamID, 
                     "stream_state", &pStream->streamState,
