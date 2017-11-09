@@ -3,4 +3,4 @@
 	url = https://gerrit.automotivelinux.org/gerrit/p/apps/app-templates.git
 [submodule "afb-utilities"]
 	path = afb-utilities
-	url = https://github.com/iotbzh/afb-utilities.git
+	url = https://gerrit.automotivelinux.org/gerrit/apps/app-afb-helpers-submodule
