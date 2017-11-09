@@ -15,7 +15,7 @@ git pull --recurse-submodules https://github.com/Audiokinetic-Automotive/afb-aud
 
 ```
 
-# AFB-daemon dependencies
+#  AFB-daemon dependencies
 -------------------------------------------------------
 
     OpenSuse >=42.2, Fedora>=25, Ubuntu>=16.4 Binary packages from  https://en.opensuse.org/LinuxAutomotive
