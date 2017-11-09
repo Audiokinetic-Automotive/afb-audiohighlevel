@@ -1,0 +1,93 @@
+<html>
+
+<head>
+    <link rel="stylesheet" href="AudioBinding.css">
+    <title>Audio High Level Test</title>
+
+    <script type="text/javascript" src="AFB-websock.js"></script>
+    <script type="text/javascript" src="AudioBinding.js"></script>
+</head>
+
+<body onload="init('ahl-4a'); ep_type='sink' ; ar='Entertainment' ; ep_id=0 ; s_id=0 ; prop_val=0 ; vol_val='0' ; p_name='balance' ; st_state='idle' ; st_mute=0">
+
+    <button id="connected" onclick="init('ahl-4a');">Binder WS Fail</button> <br><br>
+    <button id="monitoring" onclick="window.open('/monitoring/monitor.html','_monitor_audio')">Debug/Monitoring</a></button>
+
+    <b>Audio Role</b>
+    <select select_id='audiorole_list' onclick='ar=this.value'>
+        <option value='Warning' >Warning</option>
+        <option value='Guidance'>Guidance</option>
+        <option value='Notification'>Notification</option>
+        <option value='Communication'>Communication</option>
+        <option selected value='Entertainment'>Entertainment</option>
+        <option value='System'>System</option>
+        <option value='Startup'>Startup</option>
+        <option value='Shutdown'>Shutdown</option>
+    </select><br>
+    <b>Endpoint Type</b>
+    <select select_id='endpoint_type_list' onclick='ep_type=this.value'>
+        <option value='source'>Source</option>
+        <option selected value='sink'>Sink</option>
+    </select><br>
+    <b><label for="epidsel">Endpoint ID</label></b>
+    <input id="epidsel" type="number" value="0" min=0 step=1 maxlength=4 onchange='ep_id=eval(parseInt(this.value))'><br>
+    <b><label for="stidsel">Stream ID</label></b>
+    <input id="stidsel" type="number" value="0" min=0 step=1 maxlength=4 onchange='s_id=eval(parseInt(this.value))'><br>
+    <b>Stream State</b>
+    <select select_id='stream_state' onclick='st_state=this.value'>
+        <option selected value='idle'>Idle</option>
+        <option value='running'>Running</option>
+        <option value='paused'>Paused</option>
+    </select><br>
+    <b>Stream Mute State</b>
+    <select select_id='stream_mute' onclick='st_mute=parseInt(this.value)'>
+        <option selected value='0'>Unmuted</option>
+        <option value='1'>Muted</option>
+    </select><br>
+    <b>Property</b>
+    <select select_id='property_name_list' onclick='p_name=this.value'>
+        <option selected value='balance'>Balance</option>
+        <option value='fade'>Fade</option>
+        <option value='eq_bass'>EQ Bass</option>
+        <option value='eq_mid'>EQ Mid</option>
+        <option value='eq_treble'>EQ Treble</option>  
+    </select><br>
+    <b><label for="valpropsel">Volume Value</label></b>
+    <input id="volvalsel" type="number" value="0" min=0 max=100 step=1 maxlength=4 onchange='vol_val=this.value'><br>
+    <b><label for="valpropsel">Property Value</label></b>
+    <input id="propvalsel" type="number" value="0" min=0 max=100 step=1 maxlength=4 onchange='prop_val=eval(parseInt(this.value))'><br>
+
+    <br>
+    <ol>
+        <li><button onclick="callbinder('ahl-4a','get_endpoints', {audio_role:ar,endpoint_type:ep_type})">get_endpoints(audio_role,endpoint_type)</button></li>
+        <li><button onclick="callbinder('ahl-4a','stream_open', {audio_role:ar,endpoint_type:ep_type})">stream_open(audio_role,endpoint_type)</button></li>
+        <li><button onclick="callbinder('ahl-4a','stream_open', {audio_role:ar,endpoint_type:ep_type,endpoint_id:ep_id})">stream_open(audio_role,enpoint_type,endpoint_id)</button></li>
+        <li><button onclick="callbinder('ahl-4a','stream_close', {stream_id:s_id})">stream_close(stream_id)</button></li>
+        <li><button onclick="callbinder('ahl-4a','stream_close', {})">stream_close()</button></li>
+        <li><button onclick="callbinder('ahl-4a','get_stream_info', {stream_id:s_id})">get_stream_info(stream_id)</button></li>
+        <li><button onclick="callbinder('ahl-4a','set_stream_state', {stream_id:s_id})">set_stream_state(stream_id)</button></li>
+        <li><button onclick="callbinder('ahl-4a','set_stream_state', {stream_id:s_id,state:st_state})">set_stream_state(stream_id,stream_state)</button></li>
+        <li><button onclick="callbinder('ahl-4a','set_stream_state', {stream_id:s_id,mute:st_mute})">set_stream_state(stream_id,mute)</button></li>
+        <li><button onclick="callbinder('ahl-4a','set_stream_state', {stream_id:s_id,state:st_state,mute:st_mute})">set_stream_state(stream_id,stream_state,mute)</button></li>
+        <li><button onclick="callbinder('ahl-4a','set_stream_state', {state:st_state,mute:st_mute})">set_stream_state(stream_state,mute)</button></li>
+        <li><button onclick="callbinder('ahl-4a','volume', {endpoint_type:ep_type,endpoint_id:ep_id,volume:vol_val})">volume(endpoint_type,endpoint_id,value)</button></li>
+        <li><button onclick="callbinder('ahl-4a','volume', {endpoint_type:ep_type,endpoint_id:ep_id})">volume(endpoint_type,endpoint_id)</button></li>
+        <li><button onclick="callbinder('ahl-4a','property', {endpoint_type:ep_type,endpoint_id:ep_id,property_name:p_name,value:prop_val})">property(endpoint_type,endpoint_id,property,value)</button></li>
+        <li><button onclick="callbinder('ahl-4a','property', {endpoint_type:ep_type,endpoint_id:ep_id,property_name:p_name})">property(endpoint_type,endpoint_id,property)</button></li>
+        <li><button onclick="callbinder('ahl-4a','get_endpoint_info', {endpoint_type:ep_type,endpoint_id:ep_id})">get_endpoint_info(endpoint_type,endpoint_id)</button></li>
+        <li><button onclick="callbinder('ahl-4a','get_list_actions', {audio_role:ar})">get_list_actions(audio_role)</button></li>
+        <li><button onclick="callbinder('ahl-4a','post_action', {action_name:'emergency_brake',audio_role:ar,media_name:'Warning.wav'})">post_action(emergency_brake,audio_role,'Warning.wav')</button></li>
+        <li><button onclick="callbinder('ahl-4a','event_subscription', {events:['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action'],subscribe:1})">subscribe(['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action'])</button>
+        <li><button onclick="callbinder('ahl-4a','event_subscription', {events:['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action'],subscribe:0})">unsubscribe(['ahl_endpoint_property_event','ahl_endpoint_volume_event','ahl_post_action'])</button></li>
+    </ol>
+
+    <div id="main" style="visibility:hidden">
+        <ol>
+            <li>Question
+                <pre id="question"></pre>
+                <li>Response
+                    <pre id="output"></pre>
+                    <li>Events:
+                        <pre id="outevt"></pre>
+        </ol>
+    </div>
