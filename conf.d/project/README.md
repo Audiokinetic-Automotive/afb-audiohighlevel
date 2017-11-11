@@ -23,9 +23,9 @@ Define a PCM Entertainment_Main device and Entertainment_Volume softvol control 
 Please modify your /etc/asound.conf or ~/.asoundrc configuration to match your hardware audio configuration.
 
 # AHL Configuration File
-ahl-audio4a-config.json is an example of AHL configuration file.
+*ahl-audio4a-config.json* is an example of AHL configuration file.
 
-Please modify the configuration file to match with your .asoundrc configuration and the number of Audio role needed.
+Please modify the configuration file to match with your *.asoundrc* configuration and the number of Audio role needed.
 Copy the file at a location following the rule describe below.
 
 # AHL Configuration File location rule
@@ -62,14 +62,14 @@ Each audio roles has the following parameters:
 
    Currently the following audio role name are available:
 
-   - Warning          : Safety-relevant or critical alerts/alarms
-   - Guidance         : Important user information where user action is expected (e.g. navigation instruction)
-   - Notification     : HMI or else notifications (e.g. touchscreen events, speech recognition on/off,...)
-   - Communication    : Voice communications (e.g. handsfree, speech recognition)
-   - Entertainment    : Multimedia content (e.g. tuner, media player, etc.)
-   - System           : System level content or development
-   - Startup          : Early (startup) sound
-   - Shutdown         : Late (shutdown) sound
+   - **Warning**          : Safety-relevant or critical alerts/alarms
+   - **Guidance**         : Important user information where user action is expected (e.g. navigation instruction)
+   - **Notification**     : HMI or else notifications (e.g. touchscreen events, speech recognition on/off,...)
+   - **Communication**    : Voice communications (e.g. handsfree, speech recognition)
+   - **Entertainment**    : Multimedia content (e.g. tuner, media player, etc.)
+   - **System**           : System level content or development
+   - **Startup**          : Early (startup) sound
+   - **Shutdown**         : Late (shutdown) sound
 
 
 - **priority**         
@@ -113,7 +113,7 @@ Define the priority audio stream associate with the audio role.
 
   ```
 
-- actions
+- **actions**
 
   Define the list of actions support for the audio role.
 

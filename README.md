@@ -52,10 +52,18 @@ In the latter case it will be the first endpoint on the list return by get_endpo
 Currently AHL will generate 4 types of events, they are define in ahl-interface.h.
 They are the following:
 
-- AHL_STREAM_STATE_EVENT: Application are automatically susbcribe to this event. They will only received event of stream they have opened.
-- AHL_ENDPOINT_VOLUME_EVENT: Application need to subscribe to this event to receive volume change notification.
-- AHL_ENDPOINT_PROPERTY_EVENT: Application need to subscribe to this event to receive Property Change notification.
-- AHL_POST_ACTION_EVENT: Application need to subscribe to this event to receive an Action change notification. (This is for future use case, sound generation for example)
+- **AHL_STREAM_STATE_EVENT**
+
+   Application are automatically susbcribe to this event. They will only received event of stream they have opened.
+- **AHL_ENDPOINT_VOLUME_EVENT**
+
+   Application need to subscribe to this event to receive volume change notification.
+- **AHL_ENDPOINT_PROPERTY_EVENT**
+
+   Application need to subscribe to this event to receive Property Change notification.
+- **AHL_POST_ACTION_EVENT**
+
+   Application need to subscribe to this event to receive an Action change notification. (This is for future use case, sound generation for example)
 
 
 # AHL Configuration File and System configuration
@@ -91,10 +99,16 @@ git pull --recurse-submodules https://github.com/Audiokinetic-Automotive/afb-aud
 AGL Audio High Level Binding is part of the AGL Audio 4A framework,
 It required the following AGL bindings:
 
-- 4a-alsa-core: Alsa Low Level Bindings
-  source: https://gerrit.automotivelinux.org/gerrit/#/admin/projects/src/4a-alsa-core
-- 4a-hal-reference: Hardware Abstraction Layer Binding
-source: https://gerrit.automotivelinux.org/gerrit/#/admin/projects/src/4a-hal-reference   
+- **4a-alsa-core**
+
+   Alsa Low Level Bindings
+
+   source: https://gerrit.automotivelinux.org/gerrit/#/admin/projects/src/4a-alsa-core
+- **4a-hal-reference**
+
+   Hardware Abstraction Layer Binding
+
+   source: https://gerrit.automotivelinux.org/gerrit/#/admin/projects/src/4a-hal-reference   
 
 
 # Compile AGL Audio High Level Binding
