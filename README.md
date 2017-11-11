@@ -22,12 +22,12 @@ Here are the features provide by the binding:
 -----------------------------
 The binding define the following term:
 
-AHL                : Audio High Level Binding
-Audio role         : Specific set of audio policy rules applied to a group of audio stream
-Endpoint           : Virtual audio sink or source device.
-Stream             : Audio connection between a source and sink.
-Audio 4A Framework : AGL Audio Framework using a set of low level, HAL and HLB bindings.
-Policy Engine      : Static library define in ahl-policy.c implementing audio policy.
+- AHL                : Audio High Level Binding
+- Audio role         : Specific set of audio policy rules applied to a group of audio stream
+- Endpoint           : Virtual audio sink or source device.
+- Stream             : Audio connection between a source and sink.
+- Audio 4A Framework : AGL Audio Framework using a set of low level, HAL and HLB bindings.
+- Policy Engine      : Static library define in ahl-policy.c implementing audio policy.
 
 
 # Policy Engine
@@ -40,7 +40,7 @@ This allow user to easily replace it with their own policy engine.
 
 # Endpoint Selection
 ------------------------------
-AHL JSON configuration file define a number of possible endpoint per audio role. The EndPoint are list in order of priority, from highest to lowest priority. 
+AHL JSON configuration file define a number of possible endpoint per audio role. The EndPoint are list in order of priority, from highest to lowest priority.
 At init time, AHL will validate each endpoint and only keep a list of active one per audio role. Inactive endpoint are discard and is not accessible to application.
 
 Application can request a list of available Endpoint for a specific audio role by calling the API/Verb get_endpoints.
@@ -52,15 +52,15 @@ In the latter case it will be the first endpoint on the list return by get_endpo
 Currently AHL will generate 4 types of events, they are define in ahl-interface.h.
 They are the following:
 
-AHL_STREAM_STATE_EVENT: Application are automatically susbcribe to this event. They will only received event of stream they have opened.
-AHL_ENDPOINT_VOLUME_EVENT: Application need to subscribe to this event to receive volume change notification.
-AHL_ENDPOINT_PROPERTY_EVENT: Application need to subscribe to this event to receive Property Change notification.
-AHL_POST_ACTION_EVENT: Application need to subscribe to this event to receive an Action change notification. (This is for future use case, sound generation for example)
+- AHL_STREAM_STATE_EVENT: Application are automatically susbcribe to this event. They will only received event of stream they have opened.
+- AHL_ENDPOINT_VOLUME_EVENT: Application need to subscribe to this event to receive volume change notification.
+- AHL_ENDPOINT_PROPERTY_EVENT: Application need to subscribe to this event to receive Property Change notification.
+- AHL_POST_ACTION_EVENT: Application need to subscribe to this event to receive an Action change notification. (This is for future use case, sound generation for example)
 
 
 # AHL Configuration File and System configuration
 ----------------------------------------------
-Please refers to conf.d/project/README.md for detail informations.
+Please refers to https://github.com/Audiokinetic-Automotive/afb-audiohighlevel/blob/master/conf.d/project/README.md
 
 
 # Cloning Audio High Level from Git
@@ -99,9 +99,11 @@ source: https://gerrit.automotivelinux.org/gerrit/#/admin/projects/src/4a-hal-re
 
 # Compile AGL Audio High Level Binding
 --------------------------------------
-Set INSTALL_PREFIX variable to your local AGL binding install folder.
-example:
 
+Set INSTALL_PREFIX variable to your local AGL binding install folder.
+
+
+```
 export INSTALL_PREFIX=~/opt
 mkdir -p build
 cd build
@@ -109,8 +111,11 @@ cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX ..
 make
 make install
 
+```
+
 # Launch command and usage
+
+```
 afb-daemon --name audio4a --workdir=.--ldpaths=./lib:../4a-hal-reference/lib/afb-hal-intel-hda.so:../4a-alsa-core/lib/afb-alsa-4a.so --port=1234 --roothttp=./htdocs --token="" --verbose
 
-
-
+```
