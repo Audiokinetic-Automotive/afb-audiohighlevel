@@ -2,6 +2,67 @@
                   AGL Audio High Level Binding
 ------------------------------------------------------------------------
 
+# Audio High Level Binding
+-----------------------------
+The Audio High Level Binding is the upper layer in the Audio 4A architecture.
+The binding provide a simple, unified single entry point for all AGL audio applications.
+
+Here are the features provide by the binding:
+
+- Expose all audio device capabilities in uniform way to applications
+- Provide applications display name for device (e.g. UI selection)
+- Provide applications device URI to stream to selected endpoint
+- Automatically retrieve associated volume control for ALSA softvol URI
+- Allow fine grain security permissions control, policy enforcement and application audio stream control isolation
+- Priority-based and audio role specific endpoint selection / stream routings (automatic or explicit) and aggregation of different audio domains (ALSA, Pulse)
+- Audio stream controls (volume, mute, state, properties)
+
+
+# Glossary
+-----------------------------
+The binding define the following term:
+
+AHL                : Audio High Level Binding
+Audio role         : Specific set of audio policy rules applied to a group of audio stream
+Endpoint           : Virtual audio sink or source device.
+Stream             : Audio connection between a source and sink.
+Audio 4A Framework : AGL Audio Framework using a set of low level, HAL and HLB bindings.
+Policy Engine      : Static library define in ahl-policy.c implementing audio policy.
+
+
+# Policy Engine
+------------------------------
+
+The current implementation of the sample policy engine is a static library.
+The interface between the policy engine and the audio high level binding is a simple JSON interface.
+This allow user to easily replace it with their own policy engine.
+
+
+# Endpoint Selection
+------------------------------
+AHL JSON configuration file define a number of possible endpoint per audio role. The EndPoint are list in order of priority, from highest to lowest priority. 
+At init time, AHL will validate each endpoint and only keep a list of active one per audio role. Inactive endpoint are discard and is not accessible to application.
+
+Application can request a list of available Endpoint for a specific audio role by calling the API/Verb get_endpoints.
+The application can decide to open a stream on a specific endpoint from the list by specifying an EndpointID or let AHL assigned an endpoints based on it audio role.
+In the latter case it will be the first endpoint on the list return by get_endpoints.
+
+# Events
+-------------------------------
+Currently AHL will generate 4 types of events, they are define in ahl-interface.h.
+They are the following:
+
+AHL_STREAM_STATE_EVENT: Application are automatically susbcribe to this event. They will only received event of stream they have opened.
+AHL_ENDPOINT_VOLUME_EVENT: Application need to subscribe to this event to receive volume change notification.
+AHL_ENDPOINT_PROPERTY_EVENT: Application need to subscribe to this event to receive Property Change notification.
+AHL_POST_ACTION_EVENT: Application need to subscribe to this event to receive an Action change notification. (This is for future use case, sound generation for example)
+
+
+# AHL Configuration File and System configuration
+----------------------------------------------
+Please refers to conf.d/project/README.md for detail informations.
+
+
 # Cloning Audio High Level from Git
 -------------------------------------------------------
 
@@ -15,77 +76,41 @@ git pull --recurse-submodules https://github.com/Audiokinetic-Automotive/afb-aud
 
 ```
 
-#  AFB-daemon dependencies
--------------------------------------------------------
+# System libraries Dependencies
+------------------------------------------------------------------
+- libasound (version 1.1.2 or latest)
+- libsystemd (version 222 or latest)
+- libmicrohttpd (version 0.9.55 or latest)
+- afb-daemon (version 2.0 or latest)
+- json-c
+- libafbwsc
+- glib-2.0
 
-    OpenSuse >=42.2, Fedora>=25, Ubuntu>=16.4 Binary packages from  https://en.opensuse.org/LinuxAutomotive
+# AGL Binding dependencies
+-------------------------------------------------------------------
+AGL Audio High Level Binding is part of the AGL Audio 4A framework,
+It required the following AGL bindings:
 
-    For other distro see # Building AFB-daemon from source on Standard Linux Distribution
-
- 
-# Specific Dependencies 
-
- * alsa-devel >= 1.1.2 Warning some distro like Fedora-25 still ship version 1.1.1 as default
- * lua >= 5.3  Most distribution only ship version 5.2 but binary package should be easy to find
-
-On Ubuntu 16.4 you should recompile AlsaLib from source ftp://ftp.alsa-project.org/pub/lib/
-as today latest stable is 1.1.4. 
-
-
-```
-  OpenSuse
-     - LUA-5.3-devel  https://software.opensuse.org//download.html?project=devel%3Alanguages%3Alua&package=lua53
-     - Alsa-devel zypper --install alsa-devel # 42.3 is shipped default with 1.1.4 
-
-  Fedora 26 (out of the box)
-     - Lua 5.3 
-     - Alsa-devel 1.1.4
-
-  Ubuntu-16.4
-     - LUA-5.3 is avaliable in binary through apt-get
-     - Alsa should be recompiled from source
- 
-        wget ftp://ftp.alsa-project.org/pub/lib/alsa-lib-1.1.4.1.tar.bz2
-        tar -xjf alsa-lib-1.1.4.1.tar.bz2
-        cd alsa-lib-1.1.4.1
-        ./configure --prefix=/opt
-
-  Ubuntu-17.04 (out of the box)
-     - Alsa 1.1.4
-     - Lua 5.3 
-
-  #WARNING: do not forget to upgrade your PKG_CONFIG_PATH=/opt/lib/pkgconfig or whatever is the place where
-  your installed alsa/lua.
-```
+- 4a-alsa-core: Alsa Low Level Bindings
+  source: https://gerrit.automotivelinux.org/gerrit/#/admin/projects/src/4a-alsa-core
+- 4a-hal-reference: Hardware Abstraction Layer Binding
+source: https://gerrit.automotivelinux.org/gerrit/#/admin/projects/src/4a-hal-reference   
 
 
 # Compile AGL Audio High Level Binding
 --------------------------------------
+Set INSTALL_PREFIX variable to your local AGL binding install folder.
+example:
 
-* Edit your ~/.config/app-templates/cmake.d/00-common-userconf.cmake to reflect your local configuration
+export INSTALL_PREFIX=~/opt
+mkdir -p build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX ..
+make
+make install
 
-```
-    message(STATUS "*** User Local Config For Native Linux ***")
-    add_compile_options(-DNATIVE_LINUX)
-    
-    set(CMAKE_INSTALL_PREFIX $ENV{HOME}/opt)
-    set(BINDINGS_INSTALL_PREFIX $ENV{HOME}/opt)
+# Launch command and usage
+afb-daemon --name audio4a --workdir=.--ldpaths=./lib:../4a-hal-reference/lib/afb-hal-intel-hda.so:../4a-alsa-core/lib/afb-alsa-4a.so --port=1234 --roothttp=./htdocs --token="" --verbose
 
-    set(CMAKE_PREFIX_PATH ${CMAKE_INSTALL_PREFIX}/lib64/pkgconfig ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig)
-    set(LD_LIBRARY_PATH ${CMAKE_INSTALL_PREFIX}/lib64 ${CMAKE_INSTALL_PREFIX}/lib)
-
-```
-
-
-```
-    mkdir -p build
-    cd build
-    cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX ..
-    make
-    make install
-
-
-    afb-daemon --workdir=. --ldpaths=.. --port=1234  --roothttp=./htdocs --token="" --verbose
-    
 
 
