@@ -3,8 +3,7 @@
 ------------------------------------------------------------------------
 
 #  ALSA Configuration
-An example .asoundrc is provide with the file asoundrc-audio4a.
-The example define 2 audio devices with 8 ALSA softvol control. The prefix of the softvol control and the virtual PCM device must match a support audio role.
+An example .asoundrc is provided with the file asoundrc-audio4a. In this configuration, we choose to use software mixing of several virtual audio devices with distinct software volume controls (one per audio role). The example defines 2 audio zones with several ALSA virtual audio devices (endpoints) that applications should target. The prefix of the softvol control must match the configuration audio role name to automatically use audio role specific volume ramping and controls.
 
 For example:
 ```
@@ -18,23 +17,22 @@ pcm.Entertainment_Main {
 }
 ```
 
-
-Define a PCM Entertainment_Main device and Entertainment_Volume softvol control for the Entertainment audio role.
+Defines a PCM Entertainment_Main endpoint using Entertainment_Volume softvol control for the Entertainment audio role volume.
 Please modify your /etc/asound.conf or ~/.asoundrc configuration to match your hardware audio configuration.
 
 # AHL Configuration File
-*ahl-audio4a-config.json* is an example of AHL configuration file.
+*ahl-audio4a-config.json* is an example of an AHL configuration file.
 
-Please modify the configuration file to match with your *.asoundrc* configuration and the number of Audio role needed.
-Copy the file at a location following the rule describe below.
+Please modify the configuration file to match with your *.asoundrc* configuration and the desired audio roles.
+Copy the file at a location as described below.
 
-# AHL Configuration File location rule
+# AHL Configuration File Location
 
-At loading time the binding will search for a JSON configuration file located following theses rules:
+At loading time the AHL binding will search for a JSON configuration file located following theses rules:
 
 - default search path is $PROJECT_ROOT/conf.d/project:${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}
-- if environment variable "AAAA_CONFIG_PATH" is defined that it is used as search path
-- config file name should match "ahl-BINDERNAME-config.json" where BINDERNAME is provided through "--name=BINDERNAME" in afb-daemon commande line.
+- if environment variable "AAAA_CONFIG_PATH" is defined, it is used as search path
+- configuration file name should match "ahl-BINDERNAME-config.json" where BINDERNAME is provided through "--name=BINDERNAME" in afb-daemon command line.
 
 Example:
 
@@ -48,19 +46,19 @@ afb-daemon --name audio4a --workdir=.--ldpaths=./lib:../afb-aaaa/lib/afb-hal-int
 
 #### hal_list
 
- Define a list of HAL used with AHL. This is a list of HAL Binding API Name and it used by AHL to associate Endpoint with a corresponding HAL.
+ Define a list of HAL to be used with AHL. This is a list of HAL binding API names and it used by AHL to associate audio endpoints with a corresponding HAL.
 
 #### audio_roles
 
-Define a specific set of Policy to be applied to a list of Endpoints.
+Defines an application role specific (e.g. entertainment, navigation, etc.) list of prioritized endpoints, priorities and behaviors (e.g. interrupt) to be applied by the audio policy.
 
-Each audio roles has the following parameters:
+Each audio role has the following parameters:
 
 - **name**
 
-   Define the name of the audio role. The audio role name are define in ahl-policy/ahl-interface.h and use by the sample policy implementation.                  
+   Defines the name of the audio role. Some standard audio role names are provided in ahl-policy/ahl-interface.h and used in the sample policy implementation.                  
 
-   Currently the following audio role name are available:
+   In the sample configuration file (and accompanying policy implementation), the following audio role name are used:
 
    - **Warning**          : Safety-relevant or critical alerts/alarms
    - **Guidance**         : Important user information where user action is expected (e.g. navigation instruction)
@@ -73,34 +71,34 @@ Each audio roles has the following parameters:
 
 
 - **priority**         
-Define the priority audio stream associate with the audio role.
+Defines the priority audio stream associated with the audio role (will be used by policy implementation to determine audio focus).
 
 - **interupt_behavior**
 
-   Define the policy applied when the current stream interrupt a lower or equal priority stream.
+   Defines what happens when the current stream interrupts a lower or equal priority stream.
 
-   The following interrupt behavior are implemented in the sample policy engine:
+   The following interrupt behaviors are implemented in the sample policy engine:
 
-   - "continue" : Volume Ducking, the volume of the lower priority stream is  lower. The value is defined inside the policy engine. A AHL_ENDPOINT_VOLUME_EVENT is generated.
+   - "continue" : Volume ducking, the volume of the lower priority stream is lowered. The target volume value is defined by the policy engine. An AHL_ENDPOINT_VOLUME_EVENT volume event is generated.
 
-   - "pause"    : Stream paused, a AHL_STREAM_STATE_EVENT with state_event=STREAM_EVENT_PAUSE is generated to the lower priority stream.
+   - "pause"    : Stream paused, a AHL_STREAM_STATE_EVENT with state_event=STREAM_EVENT_PAUSE is generated for the lower priority stream(s).
 
-   - "cancel"   : Stream stop, a AHL_STREAM_STATE_EVENT with state_event=STREAM_EVENT_STOP is generated to the lower priority stream.
+   - "cancel"   : Stream stop, a AHL_STREAM_STATE_EVENT with state_event=STREAM_EVENT_STOP is generated for the lower priority stream(s).
 
   **Example**
 
-   An Entertainment application is playing music on the ALSA PCM Entertainment_Main (This PCM is associate to hw:0).
-   A Guidance app with a higher priority request a stream to be play on Guidance_Main (Guidance_Main is also associate with hw:0).
-   The Guidance audio role has the interrupt_behavior set to "continue".
+   An entertainment application is playing music on the ALSA PCM 'Entertainment_Main' (this PCM is routed to the software mixer targeting hw:0).
+   A navigation application with a higher priority request a stream to be played on the ALSA PCM 'Guidance_Main' (this PCM is also routed to the software mixer targeting hw:0).
+   The guidance audio role has the interrupt_behavior set to "continue".
 
-   The policy engine detect a Volume Ducking situation and the volume of Entertainment_Main is lower.
-   When the Guidance app stop or close it audio stream, the volume of Entertainment_Main is restore back to it initial value.
+   The policy engine implements a volume ducking situation and the software volume control associated with 'Entertainment_Main' is lowered during the navigation application playback.
+   When the navigation application stops or closes its audio stream, the volume of 'Entertainment_Main' is restored back to it original value.
 
 - **output/input**
 
-  Define the list of sink/source endpoints available for the audio role.
+  Defines the list of sink/source endpoints available for the audio role (in order of priority for automatic endpoint selection purposes).
 
-  The endpoint PCM URI value are define with the following rule:
+  The endpoint PCM URI values use the following naming convention:
 
   *framework.pcm_name*
 
@@ -115,6 +113,6 @@ Define the priority audio stream associate with the audio role.
 
 - **actions**
 
-  Define the list of actions support for the audio role.
+  Defines the list of sound related actions supported for the audio role.
 
   Currently not implemented, this is a provision in the configuration file for future use case such as sound generation.

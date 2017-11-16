@@ -815,7 +815,11 @@ int Policy_CloseStream(json_object *pStreamJ)
     if(pCurrEndPointPolicy)
     {
         //close the stream and handle unduck if need be
-        PolicyRunningIdleTransition(pCurrEndPointPolicy, &Stream);        
+        if((pCurrEndPointPolicy->streamInfo != NULL) && (pCurrEndPointPolicy->streamInfo->len > 0))
+        {
+            PolicyRunningIdleTransition(pCurrEndPointPolicy, &Stream);        
+        }
+        
     }
     return AHL_POLICY_ACCEPT; 
 }

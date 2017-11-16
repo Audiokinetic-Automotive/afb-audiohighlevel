@@ -39,6 +39,10 @@ set(PROJECT_SRC_DIR_PATTERN "[^_]*")
 # ----------------------------------
 set(CMAKE_BUILD_TYPE "DEBUG")
 
+# Alsa does not really like libEfence
+set(USE_EFENCE 0)
+
+
 # Compiler selection if needed. Overload the detected compiler.
 # -----------------------------------------------
 set (gcc_minimal_version 4.9)
@@ -106,7 +110,7 @@ set(CLOSING_MESSAGE "Debug: afb-daemon --name=afb-audio4a --port=1234 --ws-serve
 # -----------------------------------
 #set(WIDGET_ICON conf.d/wgt/${PROJECT_ICON} CACHE PATH "Path to the widget icon")
 #set(WIDGET_CONFIG_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/conf.d/wgt/config.xml.in CACHE PATH "Path to widget config file template (config.xml.in)")
-set(WIDGET_CONFIG_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/conf.d/wgt/config.xml.in)
+set(WIDGET_CONFIG_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/conf.d/wgt/config.xml.in CACHE PATH "Path to widget config file template (config.xml.in)")
 
 # Optional dependencies order
 # ---------------------------

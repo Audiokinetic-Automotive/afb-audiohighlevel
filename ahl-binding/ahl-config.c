@@ -93,7 +93,7 @@ int ParseHLBConfig() {
     
     const char *configfile_path =CtlConfigSearch(dirList, "ahl-");
     if (!configfile_path) {
-        AFB_ERROR("Error: No control-* config found invalid JSON %s ", dirList);
+        AFB_ERROR("Error: No ahl-* config found invalid JSON %s ", dirList);
         return AHL_FAIL;
     }
 
